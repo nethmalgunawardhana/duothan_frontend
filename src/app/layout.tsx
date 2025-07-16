@@ -20,11 +20,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-oasis-dark text-white antialiased`}>
-        <AdminProvider>
-          <AuthProvider>
+
+        <AuthProvider>
+          <AdminProvider>
             {children}
-          </AuthProvider>
-        </AdminProvider>
+          </AdminProvider>
+        </AuthProvider>
       </body>
     </html>
   );
