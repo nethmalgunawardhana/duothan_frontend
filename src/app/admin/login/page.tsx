@@ -81,7 +81,7 @@ export default function AdminLoginPage() {
               type="submit"
               variant="primary"
               className="w-full"
-              isLoading={loading}
+              loading={loading}
               disabled={!email.trim() || !password.trim()}
             >
               Access Admin Portal
@@ -93,7 +93,7 @@ export default function AdminLoginPage() {
               Demo Credentials:
             </p>
             <p className="text-oasis-accent text-sm">
-              admin@oasis.com / oasis123
+              admin@oasis.com / admin123
             </p>
           </div>
         </Card>

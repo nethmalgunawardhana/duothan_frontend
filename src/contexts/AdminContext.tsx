@@ -9,6 +9,7 @@ interface AdminState {
   admin: AdminData | null;
   loading: boolean;
   error: string | null;
+  initialized: boolean; // Add this to track if context is initialized
 }
 
 type AdminAction =
@@ -16,7 +17,8 @@ type AdminAction =
   | { type: 'LOGIN_SUCCESS'; payload: AdminData }
   | { type: 'LOGIN_FAILURE'; payload: string }
   | { type: 'LOGOUT' }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'INITIALIZE' };
 
 interface AdminContextType extends AdminState {
   loginAdmin: (email: string, password: string) => Promise<boolean>;
@@ -29,6 +31,7 @@ const initialState: AdminState = {
   admin: null,
   loading: false,
   error: null,
+  initialized: false,
 };
 
 const adminReducer = (state: AdminState, action: AdminAction): AdminState => {
@@ -41,7 +44,8 @@ const adminReducer = (state: AdminState, action: AdminAction): AdminState => {
         loading: false, 
         isAuthenticated: true, 
         admin: action.payload,
-        error: null 
+        error: null,
+        initialized: true
       };
     case 'LOGIN_FAILURE':
       return { 
@@ -49,12 +53,15 @@ const adminReducer = (state: AdminState, action: AdminAction): AdminState => {
         loading: false, 
         isAuthenticated: false, 
         admin: null,
-        error: action.payload 
+        error: action.payload,
+        initialized: true
       };
     case 'LOGOUT':
-      return { ...initialState };
+      return { ...initialState, initialized: true };
     case 'CLEAR_ERROR':
       return { ...state, error: null };
+    case 'INITIALIZE':
+      return { ...state, initialized: true };
     default:
       return state;
   }
@@ -79,6 +86,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (adminToken && savedAdmin) {
       dispatch({ type: 'LOGIN_SUCCESS', payload: savedAdmin });
+    } else {
+      dispatch({ type: 'INITIALIZE' });
     }
   }, [adminToken, savedAdmin]);
 
@@ -86,21 +95,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      // Check for demo login
-      if (email === 'admin@oasis.com' && password === 'oasis123') {
-        const mockAdmin: AdminData = {
-          id: '1',
-          email: 'admin@oasis.com',
-          role: 'admin',
-          isActive: true,
-        };
-        
-        setAdminToken('mock-token-123');
-        setSavedAdmin(mockAdmin);
-        dispatch({ type: 'LOGIN_SUCCESS', payload: mockAdmin });
-        return true;
-      }
-      
       // Real API login
       const response = await apiClient.loginAdmin({ email, password });
       
@@ -114,18 +108,24 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         dispatch({ type: 'LOGIN_FAILURE', payload: response.error || 'Admin login failed' });
         return false;
       }
-    } catch (error) {
-      dispatch({ type: 'LOGIN_FAILURE', payload: 'Network error occurred' });
+    } catch (error: unknown) {
+      let errorMessage = 'Network error occurred';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'response' in error) {
+        const response = (error as { response?: { data?: { message?: string } } }).response;
+        errorMessage = response?.data?.message || 'Network error occurred';
+      }
+      
+      dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
       return false;
     }
   };
 
   const logout = async () => {
     try {
-      // Only call API if not using mock login
-      if (adminToken !== 'mock-token-123') {
-        await apiClient.logoutAdmin();
-      }
+      await apiClient.logoutAdmin();
     } catch (error) {
       console.warn('Admin logout API call failed:', error);
     } finally {

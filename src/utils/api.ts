@@ -127,6 +127,19 @@ class ApiClient {
       const data = await response.json();
       
       if (!response.ok) {
+        // Handle 401 Unauthorized specifically
+        if (response.status === 401 && isAdminRequest) {
+          // Clear admin token if it's invalid
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('oasis_admin_token');
+            localStorage.removeItem('oasis_admin');
+          }
+          return {
+            success: false,
+            error: 'Session expired. Please log in again.',
+          };
+        }
+        
         return {
           success: false,
           error: data.message || 'An error occurred',

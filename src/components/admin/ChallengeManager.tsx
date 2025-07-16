@@ -1,40 +1,59 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient, ChallengeData } from '@/utils/api';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useAdminAuth } from '@/contexts/AdminContext';
 
 interface ChallengeManagerProps {
   onEdit?: (challenge: ChallengeData) => void;
 }
 
 export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ onEdit }) => {
+  const { isAuthenticated, initialized } = useAdminAuth();
   const [challenges, setChallenges] = useState<ChallengeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeData | null>(null);
 
-  useEffect(() => {
-    async function fetchChallenges() {
-      try {
-        const response = await apiClient.getChallenges();
-        if (response.success && response.data) {
-          setChallenges(response.data);
-        } else {
-          setError(response.error || 'Failed to fetch challenges');
-        }
-      } catch {
-        setError('Failed to fetch challenges');
-      } finally {
-        setLoading(false);
+  const fetchChallenges = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Check if admin is authenticated before making API call
+      if (!isAuthenticated) {
+        setError('Please log in to access challenges');
+        return;
       }
+      
+      const response = await apiClient.getChallenges();
+      if (response.success && response.data) {
+        setChallenges(response.data);
+        setError(null);
+      } else {
+        setError(response.error || 'Failed to fetch challenges');
+      }
+    } catch (err) {
+      console.error('Error fetching challenges:', err);
+      setError('Failed to fetch challenges');
+    } finally {
+      setLoading(false);
     }
+  }, [isAuthenticated]);
 
-    fetchChallenges();
-  }, []);
+  useEffect(() => {
+    // Only fetch challenges when admin context is initialized and authenticated
+    if (initialized && isAuthenticated) {
+      fetchChallenges();
+    } else if (initialized && !isAuthenticated) {
+      setLoading(false);
+      setError('Please log in to access challenges');
+    }
+  }, [initialized, isAuthenticated, fetchChallenges]);
 
   const handleEditChallenge = (challenge: ChallengeData) => {
     if (onEdit) {
@@ -166,7 +185,7 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ onEdit }) =>
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Are you sure you want to delete "{selectedChallenge?.title}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{selectedChallenge?.title}&quot;? This action cannot be undone.
           </p>
           
           <div className="flex gap-2 justify-end">
