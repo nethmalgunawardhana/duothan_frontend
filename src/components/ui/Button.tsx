@@ -2,7 +2,8 @@ import React from 'react';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   children: React.ReactNode;
@@ -20,10 +21,13 @@ export const Button: React.FC<ButtonProps> = ({
   const baseClasses = 'font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 border-2';
   
   const variants = {
-    primary: 'bg-oasis-primary text-oasis-dark border-oasis-primary hover:bg-transparent hover:text-oasis-primary hover:shadow-lg hover:shadow-oasis-primary/50',
-    secondary: 'bg-oasis-secondary text-white border-oasis-secondary hover:bg-transparent hover:text-oasis-secondary hover:shadow-lg hover:shadow-oasis-secondary/50',
-    danger: 'bg-oasis-error text-white border-oasis-error hover:bg-transparent hover:text-oasis-error hover:shadow-lg hover:shadow-oasis-error/50',
-    ghost: 'bg-transparent text-oasis-primary border-oasis-primary hover:bg-oasis-primary hover:text-oasis-dark hover:shadow-lg hover:shadow-oasis-primary/50'
+
+    primary: 'bg-oasis-primary text-oasis-dark hover:bg-oasis-primary/90 focus-visible:ring-oasis-primary',
+    secondary: 'bg-oasis-secondary text-white hover:bg-oasis-secondary/90 focus-visible:ring-oasis-secondary',
+    outline: 'border border-oasis-primary text-oasis-primary hover:bg-oasis-primary hover:text-oasis-dark focus-visible:ring-oasis-primary',
+    ghost: 'text-oasis-primary hover:bg-oasis-primary/10 focus-visible:ring-oasis-primary',
+    danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600',
+
   };
   
   const sizes = {

@@ -34,6 +34,52 @@ export interface AdminData {
   isActive: boolean;
 }
 
+export interface ChallengeData {
+  id: string;
+  title: string;
+  description: string;
+  type: 'algorithmic' | 'buildathon';
+  difficulty: 'easy' | 'medium' | 'hard';
+  points: number;
+  timeLimit?: number;
+  flags?: string[];
+  testCases?: TestCase[];
+  resources?: Resource[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCase {
+  input: string;
+  expectedOutput: string;
+  isHidden: boolean;
+}
+
+export interface Resource {
+  name: string;
+  url: string;
+  type: 'document' | 'video' | 'code' | 'other';
+}
+
+export interface SubmissionData {
+  id: string;
+  challengeId: string;
+  teamId: string;
+  solution: string;
+  status: 'pending' | 'correct' | 'incorrect';
+  points: number;
+  feedback?: string;
+  submittedAt: string;
+}
+
+export interface DashboardStats {
+  totalTeams: number;
+  totalChallenges: number;
+  totalSubmissions: number;
+  completedSubmissions: number;
+}
+
 class ApiClient {
   private baseURL: string;
 
@@ -133,6 +179,71 @@ class ApiClient {
     return this.request('/admin/logout', {
       method: 'POST',
     }, true);
+  }
+
+  // Dashboard Stats
+  async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
+    return this.request('/admin/dashboard/stats');
+  }
+
+  // Challenge Management
+  async getChallenges(): Promise<ApiResponse<ChallengeData[]>> {
+    return this.request('/admin/challenges');
+  }
+
+  async getChallengeById(id: string): Promise<ApiResponse<ChallengeData>> {
+    return this.request(`/admin/challenges/${id}`);
+  }
+
+  async createChallenge(challenge: Omit<ChallengeData, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<ChallengeData>> {
+    return this.request('/admin/challenges', {
+      method: 'POST',
+      body: JSON.stringify(challenge),
+    });
+  }
+
+  async updateChallenge(id: string, challenge: Partial<Omit<ChallengeData, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ApiResponse<ChallengeData>> {
+    return this.request(`/admin/challenges/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(challenge),
+    });
+  }
+
+  async deleteChallenge(id: string): Promise<ApiResponse> {
+    return this.request(`/admin/challenges/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Submission Management
+  async getSubmissions(filters?: {
+    challengeId?: string;
+    teamId?: string;
+    status?: 'pending' | 'correct' | 'incorrect';
+  }): Promise<ApiResponse<SubmissionData[]>> {
+    const queryParams = new URLSearchParams();
+    
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+      });
+    }
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/admin/submissions?${queryString}` : '/admin/submissions';
+    
+    return this.request(endpoint);
+  }
+
+  async getSubmissionById(id: string): Promise<ApiResponse<SubmissionData>> {
+    return this.request(`/admin/submissions/${id}`);
+  }
+
+  async updateSubmission(id: string, data: Partial<Omit<SubmissionData, 'id' | 'submittedAt'>>): Promise<ApiResponse<SubmissionData>> {
+    return this.request(`/admin/submissions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   // Health Check

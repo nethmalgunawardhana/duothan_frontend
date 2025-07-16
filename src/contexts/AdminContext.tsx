@@ -86,6 +86,22 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     dispatch({ type: 'LOGIN_START' });
     
     try {
+      // Check for demo login
+      if (email === 'admin@oasis.com' && password === 'oasis123') {
+        const mockAdmin: AdminData = {
+          id: '1',
+          email: 'admin@oasis.com',
+          role: 'admin',
+          isActive: true,
+        };
+        
+        setAdminToken('mock-token-123');
+        setSavedAdmin(mockAdmin);
+        dispatch({ type: 'LOGIN_SUCCESS', payload: mockAdmin });
+        return true;
+      }
+      
+      // Real API login
       const response = await apiClient.loginAdmin({ email, password });
       
       if (response.success && response.data) {
@@ -106,7 +122,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logout = async () => {
     try {
-      await apiClient.logoutAdmin();
+      // Only call API if not using mock login
+      if (adminToken !== 'mock-token-123') {
+        await apiClient.logoutAdmin();
+      }
     } catch (error) {
       console.warn('Admin logout API call failed:', error);
     } finally {
