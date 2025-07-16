@@ -1,10 +1,18 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
   error?: string;
+}
+
+export interface ProviderData {
+  id: string;
+  email: string;
+  name?: string;
+  avatar_url?: string;
+  [key: string]: unknown;
 }
 
 export interface TeamData {
@@ -12,7 +20,7 @@ export interface TeamData {
   teamName: string;
   email: string;
   authProvider: 'github' | 'google';
-  providerData: any;
+  providerData: ProviderData;
   points: number;
   completedChallenges: string[];
   isActive: boolean;
@@ -79,11 +87,19 @@ class ApiClient {
     this.baseURL = baseURL;
   }
 
+  private getToken(isAdmin: boolean = false): string | null {
+    if (typeof window === 'undefined') return null;
+    const tokenKey = isAdmin ? 'oasis_admin_token' : 'oasis_token';
+    return localStorage.getItem(tokenKey);
+  }
+
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isAdminRequest: boolean = false
   ): Promise<ApiResponse<T>> {
-    const token = localStorage.getItem('oasis_token');
+    // Safely get token from localStorage (handle SSR)
+    const token = this.getToken(isAdminRequest);
     
     const config: RequestInit = {
       headers: {
@@ -123,7 +139,7 @@ class ApiClient {
     teamName: string;
     email: string;
     authProvider: 'github' | 'google';
-    providerData: any;
+    providerData: ProviderData;
   }): Promise<ApiResponse<{ team: TeamData; token: string }>> {
     return this.request('/auth/team/register', {
       method: 'POST',
@@ -134,7 +150,7 @@ class ApiClient {
   async loginTeam(credentials: {
     email: string;
     authProvider: 'github' | 'google';
-    providerData: any;
+    providerData: ProviderData;
   }): Promise<ApiResponse<{ team: TeamData; token: string }>> {
     return this.request('/auth/team/login', {
       method: 'POST',
@@ -156,13 +172,13 @@ class ApiClient {
     return this.request('/admin/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
-    });
+    }, true);
   }
 
   async logoutAdmin(): Promise<ApiResponse> {
     return this.request('/admin/logout', {
       method: 'POST',
-    });
+    }, true);
   }
 
   // Dashboard Stats
@@ -233,6 +249,38 @@ class ApiClient {
   // Health Check
   async healthCheck(): Promise<ApiResponse> {
     return this.request('/health');
+  }
+
+  // Team Profile
+  async getTeamProfile(): Promise<ApiResponse<TeamData>> {
+    return this.request('/auth/team/profile');
+  }
+
+  async updateTeamProfile(data: Partial<TeamData>): Promise<ApiResponse<TeamData>> {
+    return this.request('/auth/team/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Submissions
+  async submitSolution(submissionData: {
+    challengeId: string;
+    code: string;
+    language: string;
+  }): Promise<ApiResponse> {
+    return this.request('/submissions', {
+      method: 'POST',
+      body: JSON.stringify(submissionData),
+    });
+  }
+
+  async getSubmissions(): Promise<ApiResponse> {
+    return this.request('/submissions');
+  }
+
+  async getSubmissionById(id: string): Promise<ApiResponse> {
+    return this.request(`/submissions/${id}`);
   }
 }
 
