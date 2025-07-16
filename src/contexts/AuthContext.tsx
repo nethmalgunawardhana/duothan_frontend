@@ -1,134 +1,171 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { authAPI } from '@/lib/api';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { apiClient, TeamData } from '@/utils/api';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  isVerified: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface AuthError {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-  message?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  updateProfile: (data: { name: string }) => Promise<void>;
-  logout: () => void;
+interface AuthState {
   isAuthenticated: boolean;
+  team: TeamData | null;
+  loading: boolean;
+  error: string | null;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+type AuthAction =
+  | { type: 'LOGIN_START' }
+  | { type: 'LOGIN_SUCCESS'; payload: TeamData }
+  | { type: 'LOGIN_FAILURE'; payload: string }
+  | { type: 'LOGOUT' }
+  | { type: 'CLEAR_ERROR' };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+interface AuthContextType extends AuthState {
+  loginTeam: (email: string, authProvider: 'github' | 'google', providerData: Record<string, unknown>) => Promise<boolean>;
+  registerTeam: (teamName: string, email: string, authProvider: 'github' | 'google', providerData: Record<string, unknown>) => Promise<boolean>;
+  logout: () => void;
+  clearError: () => void;
+}
+
+const initialState: AuthState = {
+  isAuthenticated: false,
+  team: null,
+  loading: false,
+  error: null,
 };
 
+const authReducer = (state: AuthState, action: AuthAction): AuthState => {
+  switch (action.type) {
+    case 'LOGIN_START':
+      return { ...state, loading: true, error: null };
+    case 'LOGIN_SUCCESS':
+      return { 
+        ...state, 
+        loading: false, 
+        isAuthenticated: true, 
+        team: action.payload,
+        error: null 
+      };
+    case 'LOGIN_FAILURE':
+      return { 
+        ...state, 
+        loading: false, 
+        isAuthenticated: false, 
+        team: null,
+        error: action.payload 
+      };
+    case 'LOGOUT':
+      return { 
+        ...initialState 
+      };
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
+    default:
+      return state;
+  }
+};
+
+export const AuthContext = createContext<AuthContextType | null>(null);
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, dispatch] = useReducer(authReducer, initialState);
+  const [token, setToken, removeToken] = useLocalStorage<string | null>('oasis_token', null);
+  const [savedTeam, setSavedTeam, removeSavedTeam] = useLocalStorage<TeamData | null>('oasis_team', null);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await authAPI.login({ email, password });
-      const { token, user } = response.data;
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('token', token);
-      }
-      setUser(user);
-    } catch (error) {
-      const authError = error as AuthError;
-      throw new Error(authError.response?.data?.message || authError.message || 'Login failed');
-    }
-  };
-
-  const register = async (name: string, email: string, password: string) => {
-    try {
-      const response = await authAPI.register({ name, email, password });
-      const { token, user } = response.data;
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('token', token);
-      }
-      setUser(user);
-    } catch (error) {
-      const authError = error as AuthError;
-      throw new Error(authError.response?.data?.message || authError.message || 'Registration failed');
-    }
-  };
-
-  const updateProfile = async (data: { name: string }) => {
-    try {
-      const response = await authAPI.updateProfile(data);
-      setUser(response.data.user);
-    } catch (error) {
-      const authError = error as AuthError;
-      throw new Error(authError.response?.data?.message || authError.message || 'Profile update failed');
-    }
-  };
-
-  const logout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-    }
-    setUser(null);
-  };
-
-  const checkAuth = async () => {
-    try {
-      if (typeof window === 'undefined') {
-        setLoading(false);
-        return;
-      }
-
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await authAPI.getProfile();
-      setUser(response.data.user);
-    } catch {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Initialize auth state from localStorage
   useEffect(() => {
-    checkAuth();
-  }, []);
+    if (token && savedTeam) {
+      dispatch({ type: 'LOGIN_SUCCESS', payload: savedTeam });
+    }
+  }, [token, savedTeam]);
 
-  const value = {
-    user,
-    loading,
-    login,
-    register,
-    updateProfile,
-    logout,
-    isAuthenticated: !!user,
+  const loginTeam = async (
+    email: string, 
+    authProvider: 'github' | 'google', 
+    providerData: Record<string, unknown>
+  ): Promise<boolean> => {
+    dispatch({ type: 'LOGIN_START' });
+    
+    try {
+      const response = await apiClient.loginTeam({
+        email,
+        authProvider,
+        providerData,
+      });
+      
+      if (response.success && response.data) {
+        const { team, token: authToken } = response.data;
+        setToken(authToken);
+        setSavedTeam(team);
+        dispatch({ type: 'LOGIN_SUCCESS', payload: team });
+        return true;
+      } else {
+        dispatch({ type: 'LOGIN_FAILURE', payload: response.error || 'Login failed' });
+        return false;
+      }
+    } catch (error) {
+      dispatch({ type: 'LOGIN_FAILURE', payload: 'Network error occurred' });
+      return false;
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const registerTeam = async (
+    teamName: string,
+    email: string,
+    authProvider: 'github' | 'google',
+    providerData: Record<string, unknown>
+  ): Promise<boolean> => {
+    dispatch({ type: 'LOGIN_START' });
+    
+    try {
+      const response = await apiClient.registerTeam({
+        teamName,
+        email,
+        authProvider,
+        providerData,
+      });
+      
+      if (response.success && response.data) {
+        const { team, token: authToken } = response.data;
+        setToken(authToken);
+        setSavedTeam(team);
+        dispatch({ type: 'LOGIN_SUCCESS', payload: team });
+        return true;
+      } else {
+        dispatch({ type: 'LOGIN_FAILURE', payload: response.error || 'Registration failed' });
+        return false;
+      }
+    } catch (error) {
+      dispatch({ type: 'LOGIN_FAILURE', payload: 'Network error occurred' });
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await apiClient.logoutTeam();
+    } catch (error) {
+      console.warn('Logout API call failed:', error);
+    } finally {
+      removeToken();
+      removeSavedTeam();
+      dispatch({ type: 'LOGOUT' });
+    }
+  };
+
+  const clearError = () => {
+    dispatch({ type: 'CLEAR_ERROR' });
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        ...state,
+        loginTeam,
+        registerTeam,
+        logout,
+        clearError,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };

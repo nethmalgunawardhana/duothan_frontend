@@ -1,19 +1,45 @@
-// src/utils/validation.ts
-export const validateEmail = (email: string): boolean => {
+export interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+export const validateTeamName = (teamName: string): ValidationResult => {
+  if (!teamName.trim()) {
+    return { isValid: false, error: 'Team name is required' };
+  }
+  
+  if (teamName.length < 3) {
+    return { isValid: false, error: 'Team name must be at least 3 characters' };
+  }
+  
+  if (teamName.length > 50) {
+    return { isValid: false, error: 'Team name must be less than 50 characters' };
+  }
+  
+  if (!/^[a-zA-Z0-9\s_-]+$/.test(teamName)) {
+    return { isValid: false, error: 'Team name can only contain letters, numbers, spaces, underscores, and hyphens' };
+  }
+  
+  return { isValid: true };
+};
+
+export const validateEmail = (email: string): ValidationResult => {
+  if (!email.trim()) {
+    return { isValid: false, error: 'Email is required' };
+  }
+  
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  if (!emailRegex.test(email)) {
+    return { isValid: false, error: 'Please enter a valid email address' };
+  }
+  
+  return { isValid: true };
 };
 
-export const validatePassword = (password: string): { valid: boolean; message: string } => {
-  if (password.length < 6) {
-    return { valid: false, message: 'Password must be at least 6 characters long' };
+export const validateAdminCredentials = (email: string, password: string): ValidationResult => {
+  if (!email.trim() || !password.trim()) {
+    return { isValid: false, error: 'Email and password are required' };
   }
-  return { valid: true, message: '' };
-};
-
-export const validateName = (name: string): { valid: boolean; message: string } => {
-  if (name.trim().length < 2) {
-    return { valid: false, message: 'Name must be at least 2 characters long' };
-  }
-  return { valid: true, message: '' };
+  
+  return { isValid: true };
 };

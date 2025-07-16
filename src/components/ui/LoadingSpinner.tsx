@@ -1,7 +1,28 @@
-export default function LoadingSpinner() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
-    </div>
-  );
+import React from 'react';
+
+interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
+
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+  size = 'md', 
+  className = '' 
+}) => {
+  const sizes = {
+    sm: 'w-4 h-4',
+    md: 'w-6 h-6',
+    lg: 'w-8 h-8'
+  };
+  
+  return (
+    <div
+      className={`
+        ${sizes[size]}
+        border-2 border-oasis-primary/30 border-t-oasis-primary
+        rounded-full animate-spin
+        ${className}
+      `}
+    />
+  );
+};
