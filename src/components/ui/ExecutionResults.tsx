@@ -1,12 +1,30 @@
 import React from 'react';
-import { Judge0Result } from '@/hooks/useJudge0';
 import { LoadingSpinner } from './LoadingSpinner';
+
+interface ExecutionResult {
+  status?: {
+    id: string;
+    description: string;
+  };
+  stdout?: string;
+  stderr?: string;
+  compile_output?: string;
+  message?: string;
+  time?: number;
+  memory?: number;
+}
+
+interface TestResult {
+  passed: boolean;
+  output?: string;
+  error?: string;
+}
 
 interface ExecutionResultsProps {
   loading: boolean;
   error: string | null;
-  result: Judge0Result | null;
-  testResults?: Array<{ passed: boolean; output: string; error?: string }>;
+  result: ExecutionResult | null;
+  testResults?: TestResult[];
 }
 
 export const ExecutionResults: React.FC<ExecutionResultsProps> = ({
@@ -15,19 +33,19 @@ export const ExecutionResults: React.FC<ExecutionResultsProps> = ({
   result,
   testResults = [],
 }) => {
-  const getStatusColor = (statusId: number) => {
-    // Status codes from Judge0
-    switch (statusId) {
-      case 3: // Accepted
+  const getStatusColor = (status: string) => {
+    // Status based on description
+    switch (status?.toLowerCase()) {
+      case 'accepted':
         return 'text-green-500';
-      case 4: // Wrong Answer
-      case 5: // Time Limit Exceeded
-      case 6: // Compilation Error
-      case 7: // Runtime Error
-      case 8: // Internal Error
+      case 'wrong answer':
+      case 'time limit exceeded':
+      case 'compilation error':
+      case 'runtime error':
+      case 'internal error':
         return 'text-red-500';
-      case 1: // In Queue
-      case 2: // Processing
+      case 'in queue':
+      case 'processing':
         return 'text-yellow-500';
       default:
         return 'text-gray-400';
@@ -51,31 +69,31 @@ export const ExecutionResults: React.FC<ExecutionResultsProps> = ({
       {!loading && testResults.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-xl font-bold mb-4">Test Results</h3>
-          {testResults.map((result, index) => (
+          {testResults.map((testResult: TestResult, index: number) => (
             <div 
               key={index}
-              className={`p-3 rounded border ${result.passed ? 'border-green-500 bg-green-900/20' : 'border-red-500 bg-red-900/20'}`}
+              className={`p-3 rounded border ${testResult.passed ? 'border-green-500 bg-green-900/20' : 'border-red-500 bg-red-900/20'}`}
             >
               <div className="flex items-center mb-2">
-                <span className={`text-lg font-bold ${result.passed ? 'text-green-500' : 'text-red-500'}`}>
-                  Test Case {index + 1}: {result.passed ? 'Passed' : 'Failed'}
+                <span className={`text-lg font-bold ${testResult.passed ? 'text-green-500' : 'text-red-500'}`}>
+                  Test Case {index + 1}: {testResult.passed ? 'Passed' : 'Failed'}
                 </span>
               </div>
               
-              {result.output && (
+              {testResult.output && (
                 <div className="mb-2">
                   <span className="text-gray-400">Output:</span>
                   <pre className="bg-oasis-dark p-2 rounded mt-1 text-white overflow-x-auto">
-                    {result.output}
+                    {testResult.output}
                   </pre>
                 </div>
               )}
               
-              {result.error && (
+              {testResult.error && (
                 <div>
                   <span className="text-red-400">Error:</span>
                   <pre className="bg-oasis-dark p-2 rounded mt-1 text-red-300 overflow-x-auto">
-                    {result.error}
+                    {testResult.error}
                   </pre>
                 </div>
               )}
@@ -90,8 +108,8 @@ export const ExecutionResults: React.FC<ExecutionResultsProps> = ({
           
           <div className="p-3 rounded border border-gray-700">
             <div className="flex items-center mb-2">
-              <span className={`text-lg font-bold ${getStatusColor(result.status.id)}`}>
-                Status: {result.status.description}
+              <span className={`text-lg font-bold ${getStatusColor(result.status?.description || 'unknown')}`}>
+                Status: {result.status?.description || 'Unknown'}
               </span>
             </div>
             

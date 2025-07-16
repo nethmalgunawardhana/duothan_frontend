@@ -53,10 +53,9 @@ export const useJudge0 = () => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Judge0Result | null>(null);
 
-  // Judge0 API endpoint
-  const JUDGE0_API = process.env.NEXT_PUBLIC_JUDGE0_API || 'https://judge0-ce.p.rapidapi.com';
-  const JUDGE0_API_KEY = process.env.NEXT_PUBLIC_JUDGE0_API_KEY || '';
-  const JUDGE0_API_HOST = process.env.NEXT_PUBLIC_JUDGE0_API_HOST || 'judge0-ce.p.rapidapi.com';
+  // Judge0 API endpoint - Custom CE instance
+  const JUDGE0_API = process.env.NEXT_PUBLIC_JUDGE0_API || 'http://10.3.5.139:2358';
+  const JUDGE0_API_TOKEN = process.env.NEXT_PUBLIC_JUDGE0_API_TOKEN || 'ZHVvdGhhbjUuMA==';
 
   // Submit code to Judge0
   const submitCode = useCallback(async (submission: Judge0Submission): Promise<string> => {
@@ -68,14 +67,13 @@ export const useJudge0 = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-RapidAPI-Key': JUDGE0_API_KEY,
-          'X-RapidAPI-Host': JUDGE0_API_HOST,
+          'Authorization': `Bearer ${JUDGE0_API_TOKEN}`,
         },
         body: JSON.stringify({
-          source_code: btoa(submission.source_code),
+          source_code: submission.source_code,
           language_id: submission.language_id,
-          stdin: submission.stdin ? btoa(submission.stdin) : null,
-          expected_output: submission.expected_output ? btoa(submission.expected_output) : null,
+          stdin: submission.stdin || '',
+          wait: false,
         }),
       });
       
@@ -91,7 +89,7 @@ export const useJudge0 = () => {
     } finally {
       setLoading(false);
     }
-  }, [JUDGE0_API, JUDGE0_API_KEY, JUDGE0_API_HOST]);
+  }, [JUDGE0_API, JUDGE0_API_TOKEN]);
 
   // Get submission result
   const getSubmissionResult = useCallback(async (token: string): Promise<Judge0Result> => {
@@ -99,11 +97,10 @@ export const useJudge0 = () => {
     setError(null);
     
     try {
-      const response = await fetch(`${JUDGE0_API}/submissions/${token}?base64_encoded=true`, {
+      const response = await fetch(`${JUDGE0_API}/submissions/${token}`, {
         method: 'GET',
         headers: {
-          'X-RapidAPI-Key': JUDGE0_API_KEY,
-          'X-RapidAPI-Host': JUDGE0_API_HOST,
+          'Authorization': `Bearer ${JUDGE0_API_TOKEN}`,
         },
       });
       
@@ -113,23 +110,17 @@ export const useJudge0 = () => {
       
       const data = await response.json();
       
-      // Decode base64 outputs
+      // Judge0 CE returns data directly without base64 encoding
       const result: Judge0Result = {
         token: data.token,
-        stdout: data.stdout ? atob(data.stdout) : null,
-        stderr: data.stderr ? atob(data.stderr) : null,
-        compile_output: data.compile_output ? atob(data.compile_output) : null,
-        message: data.message ? atob(data.message) : null,
+        stdout: data.stdout || null,
+        stderr: data.stderr || null,
+        compile_output: data.compile_output || null,
+        message: data.message || null,
         status: data.status,
         memory: data.memory,
         time: data.time,
       };
-      
-      // If expected output was provided, check if output matches
-      if (data.expected_output) {
-        result.expected_output = atob(data.expected_output);
-        result.matching = result.stdout?.trim() === result.expected_output.trim();
-      }
       
       setResult(result);
       return result;
@@ -139,7 +130,7 @@ export const useJudge0 = () => {
     } finally {
       setLoading(false);
     }
-  }, [JUDGE0_API, JUDGE0_API_KEY, JUDGE0_API_HOST]);
+  }, [JUDGE0_API, JUDGE0_API_TOKEN]);
 
   // Execute code with polling for results
   const executeCode = useCallback(async (submission: Judge0Submission): Promise<Judge0Result> => {
