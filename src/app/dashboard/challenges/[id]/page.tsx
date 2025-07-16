@@ -10,6 +10,7 @@ import { CodeEditor } from '@/components/ui/CodeEditor';
 import { SubmissionHistory } from '@/components/ui/SubmissionHistory';
 import { ProblemViewer } from '@/components/ui/ProblemViewer';
 import { FlagSubmission } from '@/components/ui/FlagSubmission';
+import { BuildathonUpload } from '@/components/ui/BuildathonUpload';
 import { ExecutionResults } from '@/components/ui/ExecutionResults';
 import { useJudge0 } from '@/hooks/useJudge0';
 
@@ -65,6 +66,11 @@ export default function ChallengePage() {
     if (success) {
       setIsCompleted(true);
     }
+  };
+
+  const handleBuildathonSubmissionComplete = () => {
+    setIsCompleted(true);
+    setActiveTab('description');
   };
 
   if (loading) {
@@ -144,6 +150,11 @@ export default function ChallengePage() {
                     challengeId={challenge.id}
                     testCases={challenge.testCases || []}
                     onSubmissionComplete={handleSubmissionComplete}
+                  />
+                ) : challenge.type === 'buildathon' ? (
+                  <BuildathonUpload
+                    challengeId={challenge.id}
+                    onSubmissionComplete={handleBuildathonSubmissionComplete}
                   />
                 ) : (
                   <FlagSubmission 

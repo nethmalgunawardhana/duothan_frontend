@@ -1,15 +1,47 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { TeamDashboard } from '@/components/ui/TeamDashboard';
+import { apiClient, ChallengeData } from '@/utils/api';
 
 export default function DashboardPage() {
-  const { team, loading } = useAuth();
+  const { team, loading: authLoading } = useAuth();
+  const [challenges, setChallenges] = useState<ChallengeData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (loading) {
+  useEffect(() => {
+    const fetchChallenges = async () => {
+      if (!team) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await apiClient.getChallenges();
+        
+        if (response.success && response.data) {
+          setChallenges(response.data.filter(challenge => challenge.isActive));
+        } else {
+          setError(response.error || 'Failed to fetch challenges');
+        }
+      } catch (err) {
+        setError('An error occurred while fetching challenges');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (team) {
+      fetchChallenges();
+    }
+  }, [team]);
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-oasis-dark flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -31,26 +63,8 @@ export default function DashboardPage() {
           </div>
 
           {team && (
-            <div className="bg-oasis-surface rounded-lg p-6 mb-8 border border-oasis-primary/30">
-              <h2 className="text-2xl font-bold text-white mb-4">Team Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-gray-400">Team Name:</p>
-                  <p className="text-white font-semibold">{team.teamName}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Email:</p>
-                  <p className="text-white font-semibold">{team.email}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Points:</p>
-                  <p className="text-oasis-primary font-bold text-xl">{team.points}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Auth Provider:</p>
-                  <p className="text-white font-semibold capitalize">{team.authProvider}</p>
-                </div>
-              </div>
+            <div className="mb-8">
+              <TeamDashboard team={team} challenges={challenges} />
             </div>
           )}
 
@@ -90,15 +104,6 @@ export default function DashboardPage() {
                 </button>
               </Link>
             </div>
-          </div>
-          
-          <div className="mt-8 bg-oasis-surface rounded-lg p-6 border border-oasis-primary/30">
-            <h3 className="text-xl font-bold text-white mb-4">Recent Submissions</h3>
-            <Link href="/dashboard/challenges">
-              <button className="bg-oasis-primary text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-primary/90 transition-colors">
-                View All Challenges
-              </button>
-            </Link>
           </div>
         </div>
       </div>
