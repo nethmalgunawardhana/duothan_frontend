@@ -25,6 +25,15 @@ export interface ChallengeData {
   updatedAt: string;
 }
 
+export interface LeaderboardEntry {
+  teamId: string;
+  teamName: string;
+  points: number;
+  completedChallenges: number;
+  lastSubmissionTime: string;
+  rank: number;
+}
+
 export interface TestCase {
   input: string;
   expectedOutput: string;
@@ -260,6 +269,33 @@ class ApiClient {
   isAuthenticated(): boolean {
     const token = localStorage.getItem('oasis_admin_token');
     return !!token;
+  }
+  
+  // Flag Submissions
+  async submitFlag(data: {
+    challengeId: string;
+    flag: string;
+  }): Promise<ApiResponse<{ success: boolean; points?: number }>> {
+    return this.request('/team/flags/submit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Buildathon Submissions
+  async submitBuildathonProject(data: {
+    challengeId: string;
+    githubUrl: string;
+  }): Promise<ApiResponse<{ success: boolean; points?: number }>> {
+    return this.request('/team/buildathon/submit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Leaderboard
+  async getLeaderboard(): Promise<ApiResponse<LeaderboardEntry[]>> {
+    return this.request('/leaderboard');
   }
 
   // Helper method to get stored admin data

@@ -3,6 +3,7 @@ import { useJudge0, LANGUAGE_IDS } from '@/hooks/useJudge0';
 import { apiClient } from '@/utils/api';
 import { Button } from './Button';
 import { LoadingSpinner } from './LoadingSpinner';
+import { ExecutionResults } from './ExecutionResults';
 
 interface CodeEditorProps {
   challengeId: string;
@@ -154,62 +155,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         />
       </div>
       
-      <div className={`${activeTab === 'result' ? 'block' : 'hidden'}`}>
-        <div className="p-4 bg-oasis-dark text-white h-96 overflow-auto">
-          {loading && (
-            <div className="flex items-center justify-center h-full">
-              <LoadingSpinner size="lg" />
-            </div>
-          )}
-          
-          {!loading && testResults.length === 0 && (
-            <div className="text-gray-400 text-center py-8">
-              Run tests to see results here
-            </div>
-          )}
-          
-          {!loading && testResults.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-xl font-bold mb-4">Test Results</h3>
-              {testResults.map((result, index) => (
-                <div 
-                  key={index}
-                  className={`p-3 rounded border ${result.passed ? 'border-green-500 bg-green-900/20' : 'border-red-500 bg-red-900/20'}`}
-                >
-                  <div className="flex items-center mb-2">
-                    <span className={`text-lg font-bold ${result.passed ? 'text-green-500' : 'text-red-500'}`}>
-                      Test Case {index + 1}: {result.passed ? 'Passed' : 'Failed'}
-                    </span>
-                  </div>
-                  
-                  {result.output && (
-                    <div className="mb-2">
-                      <span className="text-gray-400">Output:</span>
-                      <pre className="bg-oasis-dark p-2 rounded mt-1 text-white overflow-x-auto">
-                        {result.output}
-                      </pre>
-                    </div>
-                  )}
-                  
-                  {result.error && (
-                    <div>
-                      <span className="text-red-400">Error:</span>
-                      <pre className="bg-oasis-dark p-2 rounded mt-1 text-red-300 overflow-x-auto">
-                        {result.error}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {error && (
-            <div className="p-3 rounded border border-red-500 bg-red-900/20 text-red-300">
-              {error}
-            </div>
-          )}
-        </div>
+      <div className={`${activeTab === 'result' ? 'block' : 'hidden'} h-96`}>
+        <ExecutionResults
+          loading={loading}
+          error={error}
+          result={result}
+          testResults={testResults}
+        />
       </div>
       
       <div className="flex justify-between p-4 border-t border-oasis-primary/30">
