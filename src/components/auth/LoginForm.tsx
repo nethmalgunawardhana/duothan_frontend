@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAuth } from '@/contexts/AdminContext';
 import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
@@ -10,7 +10,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuth();
+  const { loginAdmin } = useAdminAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,8 +19,8 @@ export default function LoginForm() {
     setError('');
 
     try {
-      await login(email, password);
-      router.push('/dashboard');
+      await loginAdmin(email, password);
+      router.push('/admin/dashboard');
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);

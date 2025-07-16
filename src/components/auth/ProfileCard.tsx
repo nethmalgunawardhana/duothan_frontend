@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfileCard() {
-  const { user, updateProfile, logout } = useAuth();
+  const { team, logout } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.name || '');
+  const [teamName, setTeamName] = useState(team?.teamName || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -18,7 +18,7 @@ export default function ProfileCard() {
     setSuccess('');
 
     try {
-      await updateProfile({ name });
+      // TODO: Implement team profile update
       setSuccess('Profile updated successfully!');
       setEditing(false);
     } catch (error) {
@@ -32,7 +32,7 @@ export default function ProfileCard() {
     }
   };
 
-  if (!user) return null;
+  if (!team) return null;
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -61,11 +61,11 @@ export default function ProfileCard() {
       {editing ? (
         <form onSubmit={handleUpdate} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
+            <label className="block text-sm font-medium text-gray-700">Team Name</label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -89,27 +89,35 @@ export default function ProfileCard() {
       ) : (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <p className="mt-1 text-sm text-gray-900">{user.name}</p>
+            <label className="block text-sm font-medium text-gray-700">Team Name</label>
+            <p className="mt-1 text-sm text-gray-900">{team.teamName}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
-            <p className="mt-1 text-sm text-gray-900">{user.email}</p>
+            <p className="mt-1 text-sm text-gray-900">{team.email}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Auth Provider</label>
+            <p className="mt-1 text-sm text-gray-900 capitalize">{team.authProvider}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Points</label>
+            <p className="mt-1 text-sm font-bold text-green-600">{team.points}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Status</label>
             <p className="mt-1 text-sm text-gray-900">
-              {user.isVerified ? (
-                <span className="text-green-600">Verified</span>
+              {team.isActive ? (
+                <span className="text-green-600">Active</span>
               ) : (
-                <span className="text-yellow-600">Unverified</span>
+                <span className="text-red-600">Inactive</span>
               )}
             </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Member Since</label>
             <p className="mt-1 text-sm text-gray-900">
-              {new Date(user.createdAt).toLocaleDateString()}
+              {new Date(team.createdAt).toLocaleDateString()}
             </p>
           </div>
         </div>

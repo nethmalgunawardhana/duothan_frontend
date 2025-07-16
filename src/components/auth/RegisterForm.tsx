@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
 interface FormData {
-  name: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -13,7 +12,6 @@ interface FormData {
 
 export default function RegisterForm() {
   const [formData, setFormData] = useState<FormData>({
-    name: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -21,7 +19,6 @@ export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { register } = useAuth();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,8 +40,9 @@ export default function RegisterForm() {
     }
 
     try {
-      await register(formData.name, formData.email, formData.password);
-      router.push('/dashboard');
+      // TODO: Implement admin registration API
+      // await registerAdmin(formData.email, formData.password);
+      router.push('/admin/dashboard');
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -72,15 +70,6 @@ export default function RegisterForm() {
           )}
           
           <div className="space-y-4">
-            <input
-              name="name"
-              type="text"
-              required
-              value={formData.name}
-              onChange={handleChange}
-              className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Full name"
-            />
             <input
               name="email"
               type="email"

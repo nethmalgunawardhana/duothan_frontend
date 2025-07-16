@@ -65,7 +65,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const [token, setToken, removeToken] = useLocalStorage<string | null>('oasis_token', null);
   const [savedTeam, setSavedTeam, removeSavedTeam] = useLocalStorage<TeamData | null>('oasis_team', null);

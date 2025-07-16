@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AuthProvider as AuthContextProvider } from '@/contexts/AuthContext';
+import { AuthContextProvider } from '@/contexts/AuthContext';
 import { AdminProvider } from '@/contexts/AdminContext';
 
 interface AuthProviderProps {
