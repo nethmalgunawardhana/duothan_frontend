@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import AuthGuard from '@/components/auth/AuthGuard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -59,9 +60,11 @@ export default function DashboardPage() {
               <p className="text-gray-400 mb-4">
                 Complete coding challenges to earn points and advance in the buildathon.
               </p>
-              <button className="bg-oasis-primary text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-primary/90 transition-colors">
-                View Challenges
-              </button>
+              <Link href="/dashboard/challenges">
+                <button className="bg-oasis-primary text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-primary/90 transition-colors">
+                  View Challenges
+                </button>
+              </Link>
             </div>
 
             <div className="bg-oasis-surface rounded-lg p-6 border border-oasis-primary/30">
@@ -69,9 +72,11 @@ export default function DashboardPage() {
               <p className="text-gray-400 mb-4">
                 See how your team ranks against other participants in the buildathon.
               </p>
-              <button className="bg-oasis-secondary text-white px-4 py-2 rounded-lg font-semibold hover:bg-oasis-secondary/90 transition-colors">
-                View Rankings
-              </button>
+              <Link href="/dashboard/leaderboard">
+                <button className="bg-oasis-secondary text-white px-4 py-2 rounded-lg font-semibold hover:bg-oasis-secondary/90 transition-colors">
+                  View Rankings
+                </button>
+              </Link>
             </div>
 
             <div className="bg-oasis-surface rounded-lg p-6 border border-oasis-primary/30">
@@ -79,10 +84,21 @@ export default function DashboardPage() {
               <p className="text-gray-400 mb-4">
                 Access documentation, tutorials, and tools to help you succeed.
               </p>
-              <button className="bg-oasis-accent text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-accent/90 transition-colors">
-                Access Resources
-              </button>
+              <Link href="/dashboard/resources">
+                <button className="bg-oasis-accent text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-accent/90 transition-colors">
+                  Access Resources
+                </button>
+              </Link>
             </div>
+          </div>
+          
+          <div className="mt-8 bg-oasis-surface rounded-lg p-6 border border-oasis-primary/30">
+            <h3 className="text-xl font-bold text-white mb-4">Recent Submissions</h3>
+            <Link href="/dashboard/challenges">
+              <button className="bg-oasis-primary text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-primary/90 transition-colors">
+                View All Challenges
+              </button>
+            </Link>
           </div>
         </div>
       </div>
