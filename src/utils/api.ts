@@ -269,6 +269,17 @@ class ApiClient {
     
     return this.request(endpoint);
   }
+  
+  // Flag Submissions
+  async submitFlag(data: {
+    challengeId: string;
+    flag: string;
+  }): Promise<ApiResponse<{ success: boolean; points?: number }>> {
+    return this.request('/team/flags/submit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 
   // Health Check
   async healthCheck(): Promise<ApiResponse> {
