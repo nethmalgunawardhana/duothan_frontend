@@ -118,16 +118,7 @@ export const TeamRegisterForm: React.FC = () => {
         )}
 
         <div className="space-y-3">
-          <Button
-            variant="primary"
-            className="w-full"
-            onClick={handleGitHubRegister}
-            loading={loading}
-            disabled={!teamName.trim() || !email.trim()}
-          >
-            <span>🐙</span>
-            Register with GitHub
-          </Button>
+          
 
           <Button
             variant="secondary"
@@ -137,7 +128,7 @@ export const TeamRegisterForm: React.FC = () => {
             disabled={!teamName.trim() || !email.trim()}
           >
             <span>🌐</span>
-            Register with Google
+            Register 
           </Button>
         </div>
 

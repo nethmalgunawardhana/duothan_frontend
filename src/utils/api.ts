@@ -85,6 +85,49 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
+// Utility functions for error handling
+export const handleApiError = (error: string): { userMessage: string; shouldRedirect: boolean } => {
+  if (error.includes('Unauthorized') || error.includes('401')) {
+    return {
+      userMessage: 'Your session has expired. Please log in again.',
+      shouldRedirect: true,
+    };
+  }
+  
+  if (error.includes('not found') || error.includes('404')) {
+    return {
+      userMessage: 'The requested resource was not found.',
+      shouldRedirect: false,
+    };
+  }
+  
+  if (error.includes('Network error') || error.includes('fetch')) {
+    return {
+      userMessage: 'Network error. Please check your connection and try again.',
+      shouldRedirect: false,
+    };
+  }
+  
+  if (error.includes('500') || error.includes('Internal Server Error')) {
+    return {
+      userMessage: 'Server error. Please try again later.',
+      shouldRedirect: false,
+    };
+  }
+  
+  return {
+    userMessage: error || 'An unexpected error occurred.',
+    shouldRedirect: false,
+  };
+};
+
+export const isAuthenticationError = (error: string): boolean => {
+  return error.includes('Unauthorized') || 
+         error.includes('401') || 
+         error.includes('authentication') ||
+         error.includes('Please log in');
+};
+
 class ApiClient {
   private baseUrl: string;
   
@@ -119,6 +162,21 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle unauthorized errors specifically
+        if (response.status === 401) {
+          // Clear stored tokens for unauthorized requests
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('oasis_token');
+            localStorage.removeItem('oasis_team');
+            localStorage.removeItem('oasis_admin_token');
+            localStorage.removeItem('oasis_admin');
+          }
+          return {
+            success: false,
+            error: 'Unauthorized - Please log in again',
+          };
+        }
+        
         return {
           success: false,
           error: data.message || data.error || `HTTP ${response.status}`,
@@ -351,8 +409,30 @@ class ApiClient {
     });
   }
 
+  async submitSolution(data: {
+    challengeId: string;
+    solution: string;
+    language: string;
+  }): Promise<ApiResponse<SubmissionData>> {
+    return this.request('/submission/execute', {
+      method: 'POST',
+      body: JSON.stringify({
+        challengeId: data.challengeId,
+        code: data.solution,
+        language: data.language,
+      }),
+    });
+  }
+
   async getTeamSubmissions(): Promise<ApiResponse<SubmissionData[]>> {
     return this.request('/submission/');
+  }
+
+  async getTeamSubmissionHistory(challengeId?: string): Promise<ApiResponse<SubmissionData[]>> {
+    if (challengeId) {
+      return this.request(`/submission/challenge/${challengeId}`);
+    }
+    return this.request('/submission/history');
   }
 
   async checkChallengeCompletion(challengeId: string): Promise<ApiResponse<{ completed: boolean; submission?: SubmissionData }>> {

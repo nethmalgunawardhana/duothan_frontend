@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient, SubmissionData } from '@/utils/api';
+import { apiClient, SubmissionData, handleApiError } from '@/utils/api';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface SubmissionHistoryProps {
@@ -23,9 +23,12 @@ export const SubmissionHistory: React.FC<SubmissionHistoryProps> = ({ challengeI
         if (response.success && response.data) {
           setSubmissions(response.data);
         } else {
-          setError(response.error || 'Failed to fetch submission history');
+          // Handle specific error cases using utility function
+          const { userMessage } = handleApiError(response.error || 'Unknown error');
+          setError(userMessage);
         }
       } catch (err) {
+        console.error('Error fetching submission history:', err);
         setError('An error occurred while fetching submission history');
       } finally {
         setLoading(false);
@@ -67,8 +70,31 @@ export const SubmissionHistory: React.FC<SubmissionHistoryProps> = ({ challengeI
           <LoadingSpinner size="lg" />
         </div>
       ) : error ? (
-        <div className="text-red-500 p-4 bg-red-900/20 rounded">
-          {error}
+        <div className="text-red-400 p-6 bg-red-900/20 rounded-lg border border-red-500/30">
+          <div className="flex items-center space-x-2">
+            <svg
+              className="w-5 h-5 text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 6.5c-.77.833-.192 2.5 1.732 2.5z"
+              />
+            </svg>
+            <span className="font-medium">Error Loading Submission History</span>
+          </div>
+          <p className="mt-2 text-sm">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 text-oasis-primary hover:underline text-sm"
+          >
+            Try refreshing the page
+          </button>
         </div>
       ) : submissions.length === 0 ? (
         <div className="text-gray-400 text-center py-8">

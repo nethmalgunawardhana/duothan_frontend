@@ -120,20 +120,33 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setSavedTeam(response.data);
             dispatch({ type: 'INITIALIZE_SUCCESS', payload: response.data });
           } else {
-            // Token is invalid, clear storage
-            removeToken();
-            removeSavedTeam();
-            dispatch({ type: 'INITIALIZE_FAILURE' });
+            // Check if it's an authorization error specifically
+            if (response.error?.includes('Unauthorized')) {
+              console.log('Token expired or invalid, clearing auth state');
+              removeToken();
+              removeSavedTeam();
+              dispatch({ type: 'INITIALIZE_FAILURE' });
+            } else {
+              // For other errors, still consider user authenticated but show warning
+              console.warn('Profile fetch failed but token exists:', response.error);
+              dispatch({ type: 'INITIALIZE_SUCCESS', payload: savedTeam });
+            }
           }
         } else {
           dispatch({ type: 'INITIALIZE_FAILURE' });
         }
       } catch (error) {
         console.error('Team auth initialization error:', error);
-        // Clear potentially invalid tokens
-        removeToken();
-        removeSavedTeam();
-        dispatch({ type: 'INITIALIZE_FAILURE' });
+        // For network errors, try to use cached data if available
+        if (savedTeam && token) {
+          console.log('Using cached auth data due to network error');
+          dispatch({ type: 'INITIALIZE_SUCCESS', payload: savedTeam });
+        } else {
+          // Clear potentially invalid tokens only if no cached data
+          removeToken();
+          removeSavedTeam();
+          dispatch({ type: 'INITIALIZE_FAILURE' });
+        }
       }
     };
 

@@ -21,28 +21,6 @@ export const TeamLoginForm: React.FC = () => {
     if (error) clearError();
   };
 
-  const handleGitHubLogin = async () => {
-    const emailValidation = validateEmail(email);
-    if (!emailValidation.isValid) {
-      setEmailError(emailValidation.error || '');
-      return;
-    }
-
-    // Mock GitHub OAuth flow
-    const mockGitHubData = {
-      id: 'github_' + Date.now(),
-      login: email.split('@')[0],
-      email: email,
-      name: email.split('@')[0],
-      avatar_url: `https://github.com/${email.split('@')[0]}.png`,
-    };
-
-    const success = await loginTeam(email, 'github', mockGitHubData);
-    if (success) {
-      router.push('/dashboard');
-    }
-  };
-
   const handleGoogleLogin = async () => {
     const emailValidation = validateEmail(email);
     if (!emailValidation.isValid) {
@@ -90,17 +68,6 @@ export const TeamLoginForm: React.FC = () => {
 
         <div className="space-y-3">
           <Button
-            variant="primary"
-            className="w-full"
-            onClick={handleGitHubLogin}
-            loading={loading}
-            disabled={!email.trim()}
-          >
-            <span>🐙</span>
-            Continue with GitHub
-          </Button>
-
-          <Button
             variant="secondary"
             className="w-full"
             onClick={handleGoogleLogin}
@@ -108,7 +75,7 @@ export const TeamLoginForm: React.FC = () => {
             disabled={!email.trim()}
           >
             <span>🌐</span>
-            Continue with Google
+            Login
           </Button>
         </div>
 
