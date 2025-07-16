@@ -67,9 +67,21 @@ export interface SubmissionData {
   challengeId: string;
   teamId: string;
   solution: string;
-  status: 'pending' | 'correct' | 'incorrect';
+  language: string;
+  status: 'pending' | 'correct' | 'incorrect' | 'processing';
   points: number;
   feedback?: string;
+  executionTime?: number;
+  executionMemory?: number;
+  executionResult?: {
+    stdout?: string;
+    stderr?: string;
+    compile_output?: string;
+    status: {
+      id: number;
+      description: string;
+    };
+  };
   submittedAt: string;
 }
 
@@ -219,7 +231,7 @@ class ApiClient {
   async getSubmissions(filters?: {
     challengeId?: string;
     teamId?: string;
-    status?: 'pending' | 'correct' | 'incorrect';
+    status?: 'pending' | 'correct' | 'incorrect' | 'processing';
   }): Promise<ApiResponse<SubmissionData[]>> {
     const queryParams = new URLSearchParams();
     
@@ -244,6 +256,34 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  }
+
+  // Team Submissions
+  async getTeamSubmissions(): Promise<ApiResponse<SubmissionData[]>> {
+    return this.request('/team/submissions');
+  }
+
+  async getTeamSubmissionById(id: string): Promise<ApiResponse<SubmissionData>> {
+    return this.request(`/team/submissions/${id}`);
+  }
+
+  async submitSolution(data: {
+    challengeId: string;
+    solution: string;
+    language: string;
+  }): Promise<ApiResponse<SubmissionData>> {
+    return this.request('/team/submissions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTeamSubmissionHistory(challengeId?: string): Promise<ApiResponse<SubmissionData[]>> {
+    const endpoint = challengeId 
+      ? `/team/submissions/history?challengeId=${challengeId}`
+      : '/team/submissions/history';
+    
+    return this.request(endpoint);
   }
 
   // Health Check
