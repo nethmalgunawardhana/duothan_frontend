@@ -1,3 +1,4 @@
+// src/app/admin/login/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,36 +7,75 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { useAdminAuth } from '@/contexts/AdminContext';
-import { validateAdminCredentials } from '@/utils/validation';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+
+// Validation function
+const validateAdminCredentials = (email: string, password: string) => {
+  if (!email.trim()) {
+    return { isValid: false, error: 'Email is required' };
+  }
+  if (!email.includes('@')) {
+    return { isValid: false, error: 'Please enter a valid email' };
+  }
+  if (!password.trim()) {
+    return { isValid: false, error: 'Password is required' };
+  }
+  if (password.length < 3) {
+    return { isValid: false, error: 'Password must be at least 3 characters' };
+  }
+  return { isValid: true };
+};
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { loginAdmin, loading, error: authError, isAuthenticated } = useAdminAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { loginAdmin, loading, error: authError, isAuthenticated, initialized } = useAdminAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (initialized && isAuthenticated) {
       router.push('/admin');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, initialized, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
 
     const validation = validateAdminCredentials(email, password);
     if (!validation.isValid) {
       setError(validation.error || '');
+      setIsSubmitting(false);
       return;
     }
 
-    const success = await loginAdmin(email, password);
-    if (success) {
-      router.push('/admin');
+    try {
+      const success = await loginAdmin(email, password);
+      if (success) {
+        router.push('/admin');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const currentError = error || authError;
+
+  // Show loading while initializing
+  if (!initialized) {
+    return (
+      <div className="min-h-screen bg-oasis-dark flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-oasis-dark flex items-center justify-center p-4">
@@ -59,6 +99,7 @@ export default function AdminLoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               icon={<span>👤</span>}
               required
+              disabled={isSubmitting || loading}
             />
 
             <Input
@@ -69,11 +110,12 @@ export default function AdminLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               icon={<span>🔑</span>}
               required
+              disabled={isSubmitting || loading}
             />
 
-            {(error || authError) && (
-              <div className="p-3 bg-oasis-error/10 border border-oasis-error rounded-lg">
-                <p className="text-oasis-error text-sm">{error || authError}</p>
+            {currentError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+                <p className="text-red-400 text-sm">{currentError}</p>
               </div>
             )}
 
@@ -81,10 +123,16 @@ export default function AdminLoginPage() {
               type="submit"
               variant="primary"
               className="w-full"
-              isLoading={loading}
-              disabled={!email.trim() || !password.trim()}
+              disabled={!email.trim() || !password.trim() || isSubmitting || loading}
             >
-              Access Admin Portal
+              {isSubmitting || loading ? (
+                <div className="flex items-center justify-center">
+                  <LoadingSpinner size="sm" />
+                  <span className="ml-2">Signing in...</span>
+                </div>
+              ) : (
+                'Access Admin Portal'
+              )}
             </Button>
           </form>
 
@@ -93,7 +141,7 @@ export default function AdminLoginPage() {
               Demo Credentials:
             </p>
             <p className="text-oasis-accent text-sm">
-              admin@oasis.com / oasis123
+              admin@oasis.com / admin123
             </p>
           </div>
         </Card>

@@ -32,7 +32,7 @@ export default function ChallengePage() {
       setError(null);
       
       try {
-        const response = await apiClient.getChallengeById(id as string);
+        const response = await apiClient.getTeamChallengeById(id as string);
         
         if (response.success && response.data) {
           setChallenge(response.data);
@@ -44,7 +44,7 @@ export default function ChallengePage() {
         } else {
           setError(response.error || 'Failed to fetch challenge details');
         }
-      } catch (err) {
+      } catch {
         setError('An error occurred while fetching challenge details');
       } finally {
         setLoading(false);

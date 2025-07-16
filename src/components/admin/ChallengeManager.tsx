@@ -1,95 +1,57 @@
+// src/components/admin/ChallengeManager.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient, ChallengeData } from '@/utils/api';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useAdminAuth } from '@/contexts/AdminContext';
 
 interface ChallengeManagerProps {
   onEdit?: (challenge: ChallengeData) => void;
 }
 
 export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ onEdit }) => {
+  const { isAuthenticated, initialized } = useAdminAuth();
   const [challenges, setChallenges] = useState<ChallengeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeData | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
-    async function fetchChallenges() {
-      try {
-        // Comment out the real API call for now and use mock data
-        // const response = await apiClient.getChallenges();
-        // if (response.success && response.data) {
-        //   setChallenges(response.data);
-        // } else {
-        //   setError(response.error || 'Failed to fetch challenges');
-        // }
-
-        // Mock data for demonstration
-        setTimeout(() => {
-          setChallenges([
-            {
-              id: '1',
-              title: 'Blockchain Smart Contract',
-              description: 'Create a smart contract for token distribution.',
-              type: 'buildathon',
-              difficulty: 'hard',
-              points: 100,
-              flags: ['web3', 'blockchain', 'ethereum'],
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: '2',
-              title: 'Binary Search Tree Implementation',
-              description: 'Implement a binary search tree with insert, delete, and search operations.',
-              type: 'algorithmic',
-              difficulty: 'medium',
-              points: 50,
-              testCases: [
-                {
-                  input: '[10, 5, 15, 2, 7, 12, 20]',
-                  expectedOutput: 'true',
-                  isHidden: false,
-                },
-              ],
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: '3',
-              title: 'Frontend UI Challenge',
-              description: 'Build a responsive dashboard with React.',
-              type: 'buildathon',
-              difficulty: 'easy',
-              points: 30,
-              isActive: false,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ]);
-          setLoading(false);
-        }, 1000);
-      } catch (err) {
-        setError('An error occurred while fetching challenges');
-        setLoading(false);
-      }
+  const fetchChallenges = useCallback(async () => {
+    if (!isAuthenticated || !initialized) {
+      setLoading(false);
+      return;
     }
 
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await apiClient.getChallenges();
+      if (response.success && response.data) {
+        setChallenges(response.data);
+      } else {
+        setError(response.error || 'Failed to fetch challenges');
+      }
+    } catch (err) {
+      console.error('Error fetching challenges:', err);
+      setError('Failed to fetch challenges');
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, initialized]);
+
+  useEffect(() => {
     fetchChallenges();
-  }, []);
+  }, [fetchChallenges]);
 
   const handleEditChallenge = (challenge: ChallengeData) => {
     if (onEdit) {
       onEdit(challenge);
-    } else {
-      // Navigate to edit page or open edit form
-      console.log('Edit challenge:', challenge);
     }
   };
 
@@ -102,180 +64,179 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ onEdit }) =>
     if (!selectedChallenge) return;
 
     try {
-      setLoading(true);
+      setDeleteLoading(true);
       
-      // Comment out the real API call for now
-      // const response = await apiClient.deleteChallenge(selectedChallenge.id);
+      const response = await apiClient.deleteChallenge(selectedChallenge.id);
       
-      // if (response.success) {
-      //   setChallenges(challenges.filter(c => c.id !== selectedChallenge.id));
-      // } else {
-      //   setError(response.error || 'Failed to delete challenge');
-      // }
-
-      // Mock successful deletion
-      setTimeout(() => {
+      if (response.success) {
         setChallenges(challenges.filter(c => c.id !== selectedChallenge.id));
         setShowDeleteModal(false);
         setSelectedChallenge(null);
-        setLoading(false);
-      }, 500);
+      } else {
+        setError(response.error || 'Failed to delete challenge');
+      }
     } catch (err) {
-      setError('An error occurred while deleting the challenge');
-      setLoading(false);
+      console.error('Error deleting challenge:', err);
+      setError('Failed to delete challenge');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy':
-        return 'bg-green-500/20 text-green-500';
-      case 'medium':
-        return 'bg-yellow-500/20 text-yellow-500';
-      case 'hard':
-        return 'bg-red-500/20 text-red-500';
-      default:
-        return 'bg-gray-500/20 text-gray-500';
-    }
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setSelectedChallenge(null);
   };
 
-  if (loading && challenges.length === 0) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex justify-center items-center p-8">
         <LoadingSpinner size="lg" />
       </div>
     );
   }
 
-  if (error && challenges.length === 0) {
+  if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 text-red-500">
-        {error}
+      <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4">
+        <p className="text-red-400">{error}</p>
+        <Button 
+          onClick={fetchChallenges}
+          className="mt-2"
+          variant="outline"
+        >
+          Retry
+        </Button>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold text-white">Challenge Management</h2>
-        <Button variant="primary">
-          Add New Challenge
-        </Button>
+        <p className="text-gray-400">{challenges.length} challenges total</p>
       </div>
 
-      <div className="bg-oasis-surface border border-oasis-primary/30 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-oasis-primary/20 text-oasis-primary">
-              <tr>
-                <th className="px-6 py-4 font-medium">Title</th>
-                <th className="px-6 py-4 font-medium">Type</th>
-                <th className="px-6 py-4 font-medium">Difficulty</th>
-                <th className="px-6 py-4 font-medium">Points</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {challenges.map((challenge) => (
-                <tr key={challenge.id} className="hover:bg-oasis-surface-hover">
-                  <td className="px-6 py-4 text-white font-medium">{challenge.title}</td>
-                  <td className="px-6 py-4 text-gray-300 capitalize">{challenge.type}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(challenge.difficulty)}`}>
-                      {challenge.difficulty}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-oasis-primary font-semibold">{challenge.points}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+      {challenges.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-gray-400 mb-4">
+            <svg
+              className="mx-auto h-16 w-16 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+          </div>
+          <p className="text-gray-400 text-lg">No challenges found</p>
+          <p className="text-gray-500 text-sm mt-2">Create your first challenge to get started.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {challenges.map((challenge) => (
+            <div key={challenge.id} className="bg-oasis-surface border border-oasis-primary/30 rounded-lg p-6">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-white">{challenge.title}</h3>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
                       challenge.isActive 
-                        ? 'bg-green-500/20 text-green-500' 
+                        ? 'bg-green-500/20 text-green-400' 
                         : 'bg-gray-500/20 text-gray-400'
                     }`}>
                       {challenge.isActive ? 'Active' : 'Inactive'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                      <button
-                        onClick={() => handleEditChallenge(challenge)}
-                        className="text-gray-400 hover:text-oasis-primary transition-colors"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(challenge)}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  
+                  <p className="text-gray-300 text-sm mb-3 line-clamp-2">{challenge.description}</p>
+                  
+                  <div className="flex gap-4 text-sm text-gray-400">
+                    <span className="capitalize flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      {challenge.type}
+                    </span>
+                    <span className="capitalize flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      {challenge.difficulty}
+                    </span>
+                    <span className="flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                      {challenge.points} points
+                    </span>
+                  </div>
+                  
+                  <div className="mt-3 text-xs text-gray-500">
+                    Created: {new Date(challenge.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 ml-4">
+                  <Button
+                    onClick={() => handleEditChallenge(challenge)}
+                    size="sm"
+                    variant="outline"
+                    className="border-oasis-primary/30 text-oasis-primary hover:bg-oasis-primary/10"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteClick(challenge)}
+                    size="sm"
+                    variant="outline"
+                    className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* Delete Confirmation Modal */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={handleDeleteCancel}
         title="Delete Challenge"
       >
-        <div className="p-6">
-          <p className="text-gray-300 mb-6">
-            Are you sure you want to delete the challenge:{' '}
-            <span className="font-semibold text-white">{selectedChallenge?.title}</span>?
+        <div className="space-y-4">
+          <p className="text-gray-300">
+            Are you sure you want to delete <strong className="text-white">{selectedChallenge?.title}</strong>? 
             This action cannot be undone.
           </p>
-          <div className="flex justify-end space-x-3">
+          
+          <div className="flex gap-2 justify-end">
             <Button 
-              variant="ghost" 
-              onClick={() => setShowDeleteModal(false)}
-              disabled={loading}
+              onClick={handleDeleteCancel}
+              variant="outline"
+              disabled={deleteLoading}
             >
               Cancel
             </Button>
             <Button 
-              variant="danger" 
               onClick={handleDeleteConfirm}
-              disabled={loading}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {loading ? <LoadingSpinner size="sm" /> : 'Delete'}
+              {deleteLoading ? <LoadingSpinner size="sm" /> : 'Delete Challenge'}
             </Button>
           </div>
         </div>
       </Modal>
     </div>
   );
-}; 
+};

@@ -1,28 +1,11 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// src/utils/api.ts
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
-}
-
-export interface TeamData {
-  id: string;
-  teamName: string;
-  email: string;
-  authProvider: 'github' | 'google';
-  providerData: any;
-  points: number;
-  completedChallenges: string[];
-  isActive: boolean;
-  createdAt: string;
-}
-
+// Types
 export interface AdminData {
   id: string;
   email: string;
-  role: 'admin';
+  role: string;
   isActive: boolean;
 }
 
@@ -33,11 +16,11 @@ export interface ChallengeData {
   type: 'algorithmic' | 'buildathon';
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
-  timeLimit?: number;
   flags?: string[];
   testCases?: TestCase[];
-  resources?: Resource[];
+  resources?: string[];
   isActive: boolean;
+  timeLimit?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,33 +40,33 @@ export interface TestCase {
   isHidden: boolean;
 }
 
-export interface Resource {
-  name: string;
-  url: string;
-  type: 'document' | 'video' | 'code' | 'other';
-}
-
 export interface SubmissionData {
   id: string;
-  challengeId: string;
   teamId: string;
+  challengeId: string;
   solution: string;
   language: string;
   status: 'pending' | 'correct' | 'incorrect' | 'processing';
   points: number;
-  feedback?: string;
+  submittedAt: string;
   executionTime?: number;
   executionMemory?: number;
   executionResult?: {
     stdout?: string;
     stderr?: string;
     compile_output?: string;
-    status: {
-      id: number;
-      description: string;
-    };
   };
-  submittedAt: string;
+  feedback?: string;
+}
+
+export interface TeamData {
+  id: string;
+  teamName: string;
+  email: string;
+  points: number;
+  createdAt: string;
+  isActive: boolean;
+  completedChallenges?: string[];
 }
 
 export interface DashboardStats {
@@ -91,82 +74,66 @@ export interface DashboardStats {
   totalChallenges: number;
   totalSubmissions: number;
   completedSubmissions: number;
+  recentSubmissions: SubmissionData[];
+  topTeams: TeamData[];
+}
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
 }
 
 class ApiClient {
-  private baseURL: string;
+  private baseUrl: string;
+  
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
 
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
+  private getAuthHeaders(): Record<string, string> {
+    const token = localStorage.getItem('oasis_admin_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const token = localStorage.getItem('oasis_token');
-    
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, config);
+      const url = `${this.baseUrl}${endpoint}`;
+      const config: RequestInit = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+          ...options.headers,
+        },
+        ...options,
+      };
+
+      const response = await fetch(url, config);
       const data = await response.json();
-      
+
       if (!response.ok) {
         return {
           success: false,
-          error: data.message || 'An error occurred',
+          error: data.message || data.error || `HTTP ${response.status}`,
         };
       }
-      
+
       return {
         success: true,
         data: data.data || data,
         message: data.message,
       };
     } catch (error) {
+      console.error('API request failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error',
       };
     }
-  }
-
-  // Team Authentication
-  async registerTeam(teamData: {
-    teamName: string;
-    email: string;
-    authProvider: 'github' | 'google';
-    providerData: any;
-  }): Promise<ApiResponse<{ team: TeamData; token: string }>> {
-    return this.request('/auth/team/register', {
-      method: 'POST',
-      body: JSON.stringify(teamData),
-    });
-  }
-
-  async loginTeam(credentials: {
-    email: string;
-    authProvider: 'github' | 'google';
-    providerData: any;
-  }): Promise<ApiResponse<{ team: TeamData; token: string }>> {
-    return this.request('/auth/team/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
-  }
-
-  async logoutTeam(): Promise<ApiResponse> {
-    return this.request('/auth/team/logout', {
-      method: 'POST',
-    });
   }
 
   // Admin Authentication
@@ -181,12 +148,21 @@ class ApiClient {
   }
 
   async logoutAdmin(): Promise<ApiResponse> {
-    return this.request('/admin/logout', {
-      method: 'POST',
+    return this.request('/admin/logout', { method: 'POST' });
+  }
+
+  async getAdminProfile(): Promise<ApiResponse<AdminData>> {
+    return this.request('/admin/profile');
+  }
+
+  async updateAdminProfile(data: Partial<AdminData>): Promise<ApiResponse<AdminData>> {
+    return this.request('/admin/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   }
 
-  // Dashboard Stats
+  // Dashboard
   async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
     return this.request('/admin/dashboard/stats');
   }
@@ -200,17 +176,22 @@ class ApiClient {
     return this.request(`/admin/challenges/${id}`);
   }
 
-  async createChallenge(challenge: Omit<ChallengeData, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<ChallengeData>> {
+  async createChallenge(
+    challengeData: Omit<ChallengeData, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<ApiResponse<ChallengeData>> {
     return this.request('/admin/challenges', {
       method: 'POST',
-      body: JSON.stringify(challenge),
+      body: JSON.stringify(challengeData),
     });
   }
 
-  async updateChallenge(id: string, challenge: Partial<Omit<ChallengeData, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ApiResponse<ChallengeData>> {
+  async updateChallenge(
+    id: string,
+    challengeData: Partial<ChallengeData>
+  ): Promise<ApiResponse<ChallengeData>> {
     return this.request(`/admin/challenges/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(challenge),
+      body: JSON.stringify(challengeData),
     });
   }
 
@@ -224,59 +205,70 @@ class ApiClient {
   async getSubmissions(filters?: {
     challengeId?: string;
     teamId?: string;
-    status?: 'pending' | 'correct' | 'incorrect' | 'processing';
+    status?: string;
+    limit?: number;
   }): Promise<ApiResponse<SubmissionData[]>> {
-    const queryParams = new URLSearchParams();
-    
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value);
-      });
-    }
-    
-    const queryString = queryParams.toString();
-    const endpoint = queryString ? `/admin/submissions?${queryString}` : '/admin/submissions';
-    
-    return this.request(endpoint);
+    const params = new URLSearchParams();
+    if (filters?.challengeId) params.append('challengeId', filters.challengeId);
+    if (filters?.teamId) params.append('teamId', filters.teamId);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/admin/submissions${query}`);
   }
 
   async getSubmissionById(id: string): Promise<ApiResponse<SubmissionData>> {
     return this.request(`/admin/submissions/${id}`);
   }
 
-  async updateSubmission(id: string, data: Partial<Omit<SubmissionData, 'id' | 'submittedAt'>>): Promise<ApiResponse<SubmissionData>> {
+  async updateSubmission(
+    id: string,
+    data: Partial<SubmissionData>
+  ): Promise<ApiResponse<SubmissionData>> {
     return this.request(`/admin/submissions/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  // Team Submissions
-  async getTeamSubmissions(): Promise<ApiResponse<SubmissionData[]>> {
-    return this.request('/team/submissions');
+  async getSubmissionsByTeam(teamId: string): Promise<ApiResponse<SubmissionData[]>> {
+    return this.request(`/admin/teams/${teamId}/submissions`);
   }
 
-  async getTeamSubmissionById(id: string): Promise<ApiResponse<SubmissionData>> {
-    return this.request(`/team/submissions/${id}`);
+  // Team Management
+  async getTeams(): Promise<ApiResponse<TeamData[]>> {
+    return this.request('/admin/teams');
   }
 
-  async submitSolution(data: {
-    challengeId: string;
-    solution: string;
+  async getTeamById(id: string): Promise<ApiResponse<TeamData>> {
+    return this.request(`/admin/teams/${id}`);
+  }
+
+  // Code Execution
+  async executeCode(data: {
+    code: string;
     language: string;
-  }): Promise<ApiResponse<SubmissionData>> {
-    return this.request('/team/submissions', {
+    stdin?: string;
+  }): Promise<ApiResponse<{
+    executionResult: {
+      stdout?: string;
+      stderr?: string;
+      compile_output?: string;
+      status?: string;
+    };
+    executionTime: number;
+  }>> {
+    return this.request('/admin/execute', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async getTeamSubmissionHistory(challengeId?: string): Promise<ApiResponse<SubmissionData[]>> {
-    const endpoint = challengeId 
-      ? `/team/submissions/history?challengeId=${challengeId}`
-      : '/team/submissions/history';
-    
-    return this.request(endpoint);
+  // Helper method to check if user is authenticated
+  isAuthenticated(): boolean {
+    const token = localStorage.getItem('oasis_admin_token');
+    return !!token;
   }
   
   // Flag Submissions
@@ -306,9 +298,10 @@ class ApiClient {
     return this.request('/leaderboard');
   }
 
-  // Health Check
-  async healthCheck(): Promise<ApiResponse> {
-    return this.request('/health');
+  // Helper method to get stored admin data
+  getStoredAdmin(): AdminData | null {
+    const adminData = localStorage.getItem('oasis_admin');
+    return adminData ? JSON.parse(adminData) : null;
   }
 }
 
