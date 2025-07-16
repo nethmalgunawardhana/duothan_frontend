@@ -32,7 +32,7 @@ export default function ChallengePage() {
       setError(null);
       
       try {
-        const response = await apiClient.getTeamChallengeById(id as string);
+        const response = await apiClient.getActiveChallengeById(id as string);
         
         if (response.success && response.data) {
           setChallenge(response.data);

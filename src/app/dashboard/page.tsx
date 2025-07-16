@@ -22,7 +22,7 @@ export default function DashboardPage() {
       setError(null);
       
       try {
-        const response = await apiClient.getChallenges();
+        const response = await apiClient.getActiveChallenges();
         
         if (response.success && response.data) {
           setChallenges(response.data.filter(challenge => challenge.isActive));
@@ -30,6 +30,7 @@ export default function DashboardPage() {
           setError(response.error || 'Failed to fetch challenges');
         }
       } catch (err) {
+        console.error('Failed to fetch challenges:', err);
         setError('An error occurred while fetching challenges');
       } finally {
         setLoading(false);
@@ -61,6 +62,12 @@ export default function DashboardPage() {
               Ready Player One Buildathon Dashboard
             </p>
           </div>
+
+          {error && (
+            <div className="mb-6 bg-red-900/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
 
           {team && (
             <div className="mb-8">

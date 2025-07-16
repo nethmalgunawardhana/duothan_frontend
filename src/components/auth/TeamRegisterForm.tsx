@@ -62,7 +62,7 @@ export const TeamRegisterForm: React.FC = () => {
 
     const success = await registerTeam(teamName, email, 'github', mockGitHubData);
     if (success) {
-      router.push('/challenges');
+      router.push('/dashboard');
     }
   };
 
@@ -79,7 +79,7 @@ export const TeamRegisterForm: React.FC = () => {
 
     const success = await registerTeam(teamName, email, 'google', mockGoogleData);
     if (success) {
-      router.push('/challenges');
+      router.push('/dashboard');
     }
   };
 

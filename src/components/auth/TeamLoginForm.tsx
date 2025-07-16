@@ -39,7 +39,7 @@ export const TeamLoginForm: React.FC = () => {
 
     const success = await loginTeam(email, 'github', mockGitHubData);
     if (success) {
-      router.push('/challenges');
+      router.push('/dashboard');
     }
   };
 
@@ -60,7 +60,7 @@ export const TeamLoginForm: React.FC = () => {
 
     const success = await loginTeam(email, 'google', mockGoogleData);
     if (success) {
-      router.push('/challenges');
+      router.push('/dashboard');
     }
   };
 

@@ -1,5 +1,5 @@
 // src/utils/api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Types
 export interface AdminData {
@@ -93,7 +93,10 @@ class ApiClient {
   }
 
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('oasis_admin_token');
+    // Try team token first, then admin token
+    const teamToken = localStorage.getItem('oasis_token');
+    const adminToken = localStorage.getItem('oasis_admin_token');
+    const token = teamToken || adminToken;
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
@@ -270,13 +273,98 @@ class ApiClient {
     const token = localStorage.getItem('oasis_admin_token');
     return !!token;
   }
+
+  // Helper method to check if team is authenticated
+  isTeamAuthenticated(): boolean {
+    const token = localStorage.getItem('oasis_token');
+    return !!token;
+  }
+
+  // Team Authentication Methods
+  async registerTeam(data: {
+    teamName: string;
+    email: string;
+    authProvider: 'github' | 'google';
+    providerData: Record<string, unknown>;
+    password?: string;
+  }): Promise<ApiResponse<{ team: TeamData; token: string }>> {
+    return this.request('/auth/team/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async loginTeam(data: {
+    email: string;
+    authProvider: 'github' | 'google';
+    providerData: Record<string, unknown>;
+  }): Promise<ApiResponse<{ team: TeamData; token: string }>> {
+    return this.request('/auth/team/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async loginTeamWithPassword(data: {
+    email: string;
+    password: string;
+  }): Promise<ApiResponse<{ team: TeamData; token: string }>> {
+    return this.request('/auth/team/login/password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async logoutTeam(): Promise<ApiResponse> {
+    return this.request('/auth/logout', { method: 'POST' });
+  }
+
+  async getTeamProfile(): Promise<ApiResponse<TeamData>> {
+    return this.request('/auth/team/profile');
+  }
+
+  async updateTeamProfile(data: Partial<TeamData>): Promise<ApiResponse<TeamData>> {
+    return this.request('/auth/team/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Team Challenge Methods
+  async getActiveChallenges(): Promise<ApiResponse<ChallengeData[]>> {
+    return this.request('/auth/challenges');
+  }
+
+  async getActiveChallengeById(id: string): Promise<ApiResponse<ChallengeData>> {
+    return this.request(`/auth/challenges/${id}`);
+  }
+
+  // Team Submission Methods
+  async submitCode(data: {
+    challengeId: string;
+    code: string;
+    language: string;
+  }): Promise<ApiResponse<SubmissionData>> {
+    return this.request('/submission/execute', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTeamSubmissions(): Promise<ApiResponse<SubmissionData[]>> {
+    return this.request('/submission/');
+  }
+
+  async checkChallengeCompletion(challengeId: string): Promise<ApiResponse<{ completed: boolean; submission?: SubmissionData }>> {
+    return this.request(`/submission/check/${challengeId}`);
+  }
   
   // Flag Submissions
   async submitFlag(data: {
     challengeId: string;
     flag: string;
   }): Promise<ApiResponse<{ success: boolean; points?: number }>> {
-    return this.request('/team/flags/submit', {
+    return this.request('/submission/flag', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -287,7 +375,7 @@ class ApiClient {
     challengeId: string;
     githubUrl: string;
   }): Promise<ApiResponse<{ success: boolean; points?: number }>> {
-    return this.request('/team/buildathon/submit', {
+    return this.request('/submission/github', {
       method: 'POST',
       body: JSON.stringify(data),
     });

@@ -1,5 +1,5 @@
 // src/hooks/useLocalStorage.ts
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 export function useLocalStorage<T>(
   key: string,
@@ -21,7 +21,7 @@ export function useLocalStorage<T>(
   });
 
   // Return a wrapped version of useState's setter function that persists the new value to localStorage
-  const setValue = (value: T) => {
+  const setValue = useCallback((value: T) => {
     try {
       setStoredValue(value);
       if (typeof window !== 'undefined') {
@@ -30,10 +30,10 @@ export function useLocalStorage<T>(
     } catch (error) {
       console.error(`Error setting localStorage key "${key}":`, error);
     }
-  };
+  }, [key]);
 
   // Function to remove the item from localStorage
-  const removeValue = () => {
+  const removeValue = useCallback(() => {
     try {
       setStoredValue(initialValue);
       if (typeof window !== 'undefined') {
@@ -42,7 +42,7 @@ export function useLocalStorage<T>(
     } catch (error) {
       console.error(`Error removing localStorage key "${key}":`, error);
     }
-  };
+  }, [key, initialValue]);
 
   return [storedValue, setValue, removeValue];
 }

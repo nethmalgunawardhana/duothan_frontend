@@ -10,16 +10,16 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { team, loading } = useAuth();
+  const { team, loading, initialized } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !team) {
+    if (initialized && !loading && !team) {
       router.push('/login');
     }
-  }, [team, loading, router]);
+  }, [team, loading, initialized, router]);
 
-  if (loading) {
+  if (!initialized || loading) {
     return (
       <div className="min-h-screen bg-oasis-dark flex items-center justify-center">
         <LoadingSpinner size="lg" />

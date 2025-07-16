@@ -62,6 +62,28 @@ export const validateEmail = (email: string): ValidationResult => {
   return { isValid: true };
 };
 
+export const validateTeamName = (teamName: string): ValidationResult => {
+  if (!teamName.trim()) {
+    return { isValid: false, error: 'Team name is required' };
+  }
+  
+  if (teamName.length < 3) {
+    return { isValid: false, error: 'Team name must be at least 3 characters long' };
+  }
+  
+  if (teamName.length > 50) {
+    return { isValid: false, error: 'Team name must be 50 characters or less' };
+  }
+  
+  // Allow alphanumeric, spaces, dashes, and underscores
+  const teamNameRegex = /^[a-zA-Z0-9\s\-_]+$/;
+  if (!teamNameRegex.test(teamName)) {
+    return { isValid: false, error: 'Team name can only contain letters, numbers, spaces, dashes, and underscores' };
+  }
+  
+  return { isValid: true };
+};
+
 export const validatePassword = (password: string): ValidationResult => {
   if (!password.trim()) {
     return { isValid: false, error: 'Password is required' };
