@@ -1,3 +1,4 @@
+// src/app/admin/challenges/page.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -14,9 +15,8 @@ export default function AdminChallengesPage() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<ChallengeData | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Don't render if not initialized, authenticated or still loading
+  // Don't render if not initialized or still loading
   if (!initialized || loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -28,7 +28,23 @@ export default function AdminChallengesPage() {
   if (!isAuthenticated) {
     return (
       <div className="text-center text-gray-400 min-h-64 flex items-center justify-center">
-        Please log in to access this page.
+        <div>
+          <svg
+            className="mx-auto h-16 w-16 text-gray-500 mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1}
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
+          </svg>
+          <p>Please log in to access this page.</p>
+        </div>
       </div>
     );
   }
@@ -52,22 +68,14 @@ export default function AdminChallengesPage() {
     challengeData: Omit<ChallengeData, 'id' | 'createdAt' | 'updatedAt'>
   ) => {
     try {
-      // Check if admin is authenticated before making API calls
-      if (!isAuthenticated) {
-        throw new Error('Not authenticated. Please log in again.');
-      }
-
-      setIsSubmitting(true);
       let response;
       
       if (selectedChallenge) {
         // Update existing challenge
         response = await apiClient.updateChallenge(selectedChallenge.id, challengeData);
-        console.log('Challenge updated successfully:', response);
       } else {
         // Create new challenge
         response = await apiClient.createChallenge(challengeData);
-        console.log('Challenge created successfully:', response);
       }
       
       if (!response.success) {
@@ -78,20 +86,17 @@ export default function AdminChallengesPage() {
       setSelectedChallenge(null);
       // Trigger refresh of the challenge list
       setRefreshTrigger((prev) => prev + 1);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error saving challenge:', error);
       
       // Check if it's an authentication error
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Session expired') || errorMessage.includes('Invalid token')) {
-        // Redirect to login page
         window.location.href = '/admin/login';
         return;
       }
       
       throw error;
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -99,7 +104,25 @@ export default function AdminChallengesPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-white">Challenges</h1>
-        <Button variant="primary" onClick={handleOpenCreateForm}>
+        <Button 
+          variant="primary" 
+          onClick={handleOpenCreateForm}
+          className="bg-oasis-primary hover:bg-oasis-primary/90"
+        >
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
+          </svg>
           Create New Challenge
         </Button>
       </div>
@@ -126,4 +149,4 @@ export default function AdminChallengesPage() {
       </Modal>
     </div>
   );
-} 
+}

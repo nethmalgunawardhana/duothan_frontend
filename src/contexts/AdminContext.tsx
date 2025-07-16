@@ -1,15 +1,15 @@
+// src/contexts/AdminContext.tsx
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { apiClient, AdminData } from '@/utils/api';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 interface AdminState {
   isAuthenticated: boolean;
   admin: AdminData | null;
   loading: boolean;
   error: string | null;
-  initialized: boolean; // Add this to track if context is initialized
+  initialized: boolean;
 }
 
 type AdminAction =
@@ -18,18 +18,20 @@ type AdminAction =
   | { type: 'LOGIN_FAILURE'; payload: string }
   | { type: 'LOGOUT' }
   | { type: 'CLEAR_ERROR' }
-  | { type: 'INITIALIZE' };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'INITIALIZE_SUCCESS'; payload: AdminData }
+  | { type: 'INITIALIZE_FAILURE' };
 
 interface AdminContextType extends AdminState {
   loginAdmin: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   clearError: () => void;
 }
 
 const initialState: AdminState = {
   isAuthenticated: false,
   admin: null,
-  loading: false,
+  loading: true,
   error: null,
   initialized: false,
 };
@@ -39,29 +41,47 @@ const adminReducer = (state: AdminState, action: AdminAction): AdminState => {
     case 'LOGIN_START':
       return { ...state, loading: true, error: null };
     case 'LOGIN_SUCCESS':
-      return { 
-        ...state, 
-        loading: false, 
-        isAuthenticated: true, 
+      return {
+        ...state,
+        loading: false,
+        isAuthenticated: true,
         admin: action.payload,
         error: null,
-        initialized: true
+        initialized: true,
       };
     case 'LOGIN_FAILURE':
-      return { 
-        ...state, 
-        loading: false, 
-        isAuthenticated: false, 
+      return {
+        ...state,
+        loading: false,
+        isAuthenticated: false,
         admin: null,
         error: action.payload,
-        initialized: true
+        initialized: true,
       };
     case 'LOGOUT':
-      return { ...initialState, initialized: true };
+      return { ...initialState, initialized: true, loading: false };
     case 'CLEAR_ERROR':
       return { ...state, error: null };
-    case 'INITIALIZE':
-      return { ...state, initialized: true };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'INITIALIZE_SUCCESS':
+      return {
+        ...state,
+        isAuthenticated: true,
+        admin: action.payload,
+        loading: false,
+        initialized: true,
+        error: null,
+      };
+    case 'INITIALIZE_FAILURE':
+      return {
+        ...state,
+        isAuthenticated: false,
+        admin: null,
+        loading: false,
+        initialized: true,
+        error: null,
+      };
     default:
       return state;
   }
@@ -79,58 +99,89 @@ export const useAdminAuth = () => {
 
 export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(adminReducer, initialState);
-  const [adminToken, setAdminToken, removeAdminToken] = useLocalStorage<string | null>('oasis_admin_token', null);
-  const [savedAdmin, setSavedAdmin, removeSavedAdmin] = useLocalStorage<AdminData | null>('oasis_admin', null);
 
   // Initialize admin state from localStorage
   useEffect(() => {
-    if (adminToken && savedAdmin) {
-      dispatch({ type: 'LOGIN_SUCCESS', payload: savedAdmin });
-    } else {
-      dispatch({ type: 'INITIALIZE' });
-    }
-  }, [adminToken, savedAdmin]);
+    const initializeAuth = async () => {
+      try {
+        const token = localStorage.getItem('oasis_admin_token');
+        const savedAdmin = localStorage.getItem('oasis_admin');
+
+        if (token && savedAdmin) {
+          const adminData = JSON.parse(savedAdmin);
+          
+          // Verify the token is still valid by fetching the profile
+          const response = await apiClient.getAdminProfile();
+          
+          if (response.success && response.data) {
+            // Update stored admin data if needed
+            localStorage.setItem('oasis_admin', JSON.stringify(response.data));
+            dispatch({ type: 'INITIALIZE_SUCCESS', payload: response.data });
+          } else {
+            // Token is invalid, clear storage
+            localStorage.removeItem('oasis_admin_token');
+            localStorage.removeItem('oasis_admin');
+            dispatch({ type: 'INITIALIZE_FAILURE' });
+          }
+        } else {
+          dispatch({ type: 'INITIALIZE_FAILURE' });
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        // Clear potentially invalid tokens
+        localStorage.removeItem('oasis_admin_token');
+        localStorage.removeItem('oasis_admin');
+        dispatch({ type: 'INITIALIZE_FAILURE' });
+      }
+    };
+
+    initializeAuth();
+  }, []);
 
   const loginAdmin = async (email: string, password: string): Promise<boolean> => {
     dispatch({ type: 'LOGIN_START' });
-    
+
     try {
-      // Real API login
       const response = await apiClient.loginAdmin({ email, password });
-      
+
       if (response.success && response.data) {
         const { admin, token } = response.data;
-        setAdminToken(token);
-        setSavedAdmin(admin);
+        
+        // Store authentication data
+        localStorage.setItem('oasis_admin_token', token);
+        localStorage.setItem('oasis_admin', JSON.stringify(admin));
+        
         dispatch({ type: 'LOGIN_SUCCESS', payload: admin });
         return true;
       } else {
-        dispatch({ type: 'LOGIN_FAILURE', payload: response.error || 'Admin login failed' });
+        dispatch({ type: 'LOGIN_FAILURE', payload: response.error || 'Login failed' });
         return false;
       }
-    } catch (error: unknown) {
+    } catch (error) {
+      console.error('Login error:', error);
       let errorMessage = 'Network error occurred';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null && 'response' in error) {
-        const response = (error as { response?: { data?: { message?: string } } }).response;
-        errorMessage = response?.data?.message || 'Network error occurred';
       }
-      
+
       dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
       return false;
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
     try {
+      // Call logout API endpoint
       await apiClient.logoutAdmin();
     } catch (error) {
-      console.warn('Admin logout API call failed:', error);
+      console.warn('Logout API call failed:', error);
     } finally {
-      removeAdminToken();
-      removeSavedAdmin();
+      // Clear local storage regardless of API response
+      localStorage.removeItem('oasis_admin_token');
+      localStorage.removeItem('oasis_admin');
       dispatch({ type: 'LOGOUT' });
     }
   };
