@@ -20,12 +20,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-oasis-dark flex">
+    <div className="min-h-screen bg-oasis-dark">
       {/* Admin Sidebar */}
       <AdminSidebar />
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="ml-64 flex flex-col min-h-screen">
         {/* Admin Header */}
         <header className="bg-oasis-surface border-b border-oasis-primary/30">
           <div className="px-4 sm:px-6 lg:px-8">
