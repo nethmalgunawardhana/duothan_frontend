@@ -5,15 +5,24 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({ 
   isOpen, 
   onClose, 
   title, 
-  children 
+  children,
+  size = 'md'
 }) => {
   if (!isOpen) return null;
+  
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl',
+  };
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -24,9 +33,9 @@ export const Modal: React.FC<ModalProps> = ({
       />
       
       {/* Modal */}
-      <div className="relative bg-oasis-surface border border-oasis-primary rounded-lg max-w-md w-full mx-4 p-6">
+      <div className={`relative bg-oasis-surface border border-oasis-primary rounded-lg ${sizeClasses[size]} w-full mx-4 overflow-auto max-h-[90vh]`}>
         {title && (
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between p-4 border-b border-gray-700">
             <h3 className="text-lg font-semibold text-oasis-primary">{title}</h3>
             <button
               onClick={onClose}

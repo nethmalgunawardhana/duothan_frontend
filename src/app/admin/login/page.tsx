@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/admin/dashboard');
+      router.push('/admin');
     }
   }, [isAuthenticated, router]);
 
@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
 
     const success = await loginAdmin(email, password);
     if (success) {
-      router.push('/admin/dashboard');
+      router.push('/admin');
     }
   };
 
@@ -81,7 +81,7 @@ export default function AdminLoginPage() {
               type="submit"
               variant="primary"
               className="w-full"
-              loading={loading}
+              isLoading={loading}
               disabled={!email.trim() || !password.trim()}
             >
               Access Admin Portal
