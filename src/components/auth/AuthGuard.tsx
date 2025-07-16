@@ -1,40 +1,35 @@
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect, ReactNode } from 'react';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useAuth } from '@/hooks/useAuth';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface AuthGuardProps {
-  children: ReactNode;
-  requireAuth?: boolean;
+  children: React.ReactNode;
 }
 
-export default function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
-  const { isAuthenticated, loading } = useAuth();
+export default function AuthGuard({ children }: AuthGuardProps) {
+  const { team, loading, initialized } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (requireAuth && !isAuthenticated) {
-        router.push('/login');
-      } else if (!requireAuth && isAuthenticated) {
-        router.push('/dashboard');
-      }
+    if (initialized && !loading && !team) {
+      router.push('/login');
     }
-  }, [loading, isAuthenticated, requireAuth, router]);
+  }, [team, loading, initialized, router]);
 
-  if (loading) {
-    return <LoadingSpinner />;
+  if (!initialized || loading) {
+    return (
+      <div className="min-h-screen bg-oasis-dark flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
-  if (requireAuth && !isAuthenticated) {
-    return null;
-  }
-
-  if (!requireAuth && isAuthenticated) {
-    return null;
+  if (!team) {
+    return null; // Will redirect in the useEffect
   }
 
   return <>{children}</>;
-}
+} 

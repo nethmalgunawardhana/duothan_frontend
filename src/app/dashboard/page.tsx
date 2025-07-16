@@ -1,66 +1,119 @@
-// src/app/dashboard/page.tsx
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import ProfileCard from '@/components/auth/ProfileCard';
-import HealthStatus from '@/components/ui/HealthStatus';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+import AuthGuard from '@/components/auth/AuthGuard';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { TeamDashboard } from '@/components/ui/TeamDashboard';
+import { apiClient, ChallengeData } from '@/utils/api';
 
 export default function DashboardPage() {
-  const { user, loading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { team, loading: authLoading } = useAuth();
+  const [challenges, setChallenges] = useState<ChallengeData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push('/login');
+    const fetchChallenges = async () => {
+      if (!team) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await apiClient.getActiveChallenges();
+        
+        if (response.success && response.data) {
+          setChallenges(response.data.filter(challenge => challenge.isActive));
+        } else {
+          setError(response.error || 'Failed to fetch challenges');
+        }
+      } catch (err) {
+        console.error('Failed to fetch challenges:', err);
+        setError('An error occurred while fetching challenges');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (team) {
+      fetchChallenges();
     }
-  }, [loading, isAuthenticated, router]);
+  }, [team]);
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  if (!isAuthenticated || !user) {
-    return null;
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-oasis-dark flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user.name}!
-          </h1>
-          <p className="text-gray-600">Manage your account and settings.</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <ProfileCard />
+    <AuthGuard>
+      <div className="min-h-screen bg-oasis-dark">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-oasis-primary mb-4">
+              Welcome to OASIS Protocol
+            </h1>
+            <p className="text-gray-400 text-lg">
+              Ready Player One Buildathon Dashboard
+            </p>
           </div>
-          
-          <div className="space-y-6">
-            <HealthStatus />
-            
-            <div className="bg-white shadow rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Quick Actions</h3>
-              <div className="space-y-2">
-                <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
-                  View Activity
+
+          {error && (
+            <div className="mb-6 bg-red-900/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {team && (
+            <div className="mb-8">
+              <TeamDashboard team={team} challenges={challenges} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-oasis-surface rounded-lg p-6 border border-oasis-primary/30">
+              <h3 className="text-xl font-bold text-white mb-4">Challenges</h3>
+              <p className="text-gray-400 mb-4">
+                Complete coding challenges to earn points and advance in the buildathon.
+              </p>
+              <Link href="/dashboard/challenges">
+                <button className="bg-oasis-primary text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-primary/90 transition-colors">
+                  View Challenges
                 </button>
-                <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
-                  Account Settings
+              </Link>
+            </div>
+
+            <div className="bg-oasis-surface rounded-lg p-6 border border-oasis-primary/30">
+              <h3 className="text-xl font-bold text-white mb-4">Leaderboard</h3>
+              <p className="text-gray-400 mb-4">
+                See how your team ranks against other participants in the buildathon.
+              </p>
+              <Link href="/dashboard/leaderboard">
+                <button className="bg-oasis-secondary text-white px-4 py-2 rounded-lg font-semibold hover:bg-oasis-secondary/90 transition-colors">
+                  View Rankings
                 </button>
-                <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
-                  Help & Support
+              </Link>
+            </div>
+
+            <div className="bg-oasis-surface rounded-lg p-6 border border-oasis-primary/30">
+              <h3 className="text-xl font-bold text-white mb-4">Resources</h3>
+              <p className="text-gray-400 mb-4">
+                Access documentation, tutorials, and tools to help you succeed.
+              </p>
+              <Link href="/dashboard/resources">
+                <button className="bg-oasis-accent text-oasis-dark px-4 py-2 rounded-lg font-semibold hover:bg-oasis-accent/90 transition-colors">
+                  Access Resources
                 </button>
-              </div>
+              </Link>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }
