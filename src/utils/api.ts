@@ -298,6 +298,11 @@ class ApiClient {
     return this.request('/leaderboard');
   }
 
+  // Team Challenge Methods
+  async getTeamChallengeById(id: string): Promise<ApiResponse<ChallengeData>> {
+    return this.request(`/team/challenges/${id}`);
+  }
+
   // Helper method to get stored admin data
   getStoredAdmin(): AdminData | null {
     const adminData = localStorage.getItem('oasis_admin');

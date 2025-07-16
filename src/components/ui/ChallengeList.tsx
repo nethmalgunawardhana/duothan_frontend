@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { ChallengeData } from '@/utils/api';
+import { useRouter } from 'next/navigation';
+import { ChallengeData, apiClient } from '@/utils/api';
+import { Modal } from './Modal';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface ChallengeListProps {
   challenges: ChallengeData[];
@@ -11,6 +13,7 @@ export const ChallengeList: React.FC<ChallengeListProps> = ({
   challenges, 
   completedChallengeIds = [] 
 }) => {
+  const router = useRouter();
   const [filter, setFilter] = useState<{
     type: 'all' | 'algorithmic' | 'buildathon';
     difficulty: 'all' | 'easy' | 'medium' | 'hard';
@@ -20,6 +23,13 @@ export const ChallengeList: React.FC<ChallengeListProps> = ({
     difficulty: 'all',
     completed: 'all',
   });
+  
+  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeData | null>(null);
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [flag, setFlag] = useState('');
+  const [flagError, setFlagError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
   
   const filteredChallenges = challenges.filter(challenge => {
     if (filter.type !== 'all' && challenge.type !== filter.type) {
@@ -54,6 +64,64 @@ export const ChallengeList: React.FC<ChallengeListProps> = ({
       default:
         return null;
     }
+  };
+
+  const handleChallengeClick = (challenge: ChallengeData, e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // If challenge is already completed, navigate directly
+    if (completedChallengeIds.includes(challenge.id)) {
+      router.push(`/dashboard/challenges/${challenge.id}`);
+      return;
+    }
+    
+    // Otherwise show flag validation modal
+    setSelectedChallenge(challenge);
+    setShowFlagModal(true);
+    setFlag('');
+    setFlagError(null);
+  };
+  
+  const handleFlagSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedChallenge) return;
+    
+    if (!flag.trim()) {
+      setFlagError('Please enter a flag');
+      return;
+    }
+    
+    setLoading(true);
+    setFlagError(null);
+    
+    try {
+      const response = await apiClient.submitFlag({
+        challengeId: selectedChallenge.id,
+        flag: flag.trim(),
+      });
+      
+      if (response.success) {
+        // Flag is correct, navigate to challenge
+        router.push(`/dashboard/challenges/${selectedChallenge.id}`);
+      } else {
+        setFlagError(response.error || 'Invalid flag');
+        setAttempts(prev => prev + 1);
+      }
+    } catch (err) {
+      setFlagError('An error occurred while validating the flag');
+      setAttempts(prev => prev + 1);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const closeModal = () => {
+    setShowFlagModal(false);
+    setSelectedChallenge(null);
+    setFlag('');
+    setFlagError(null);
+    setAttempts(0);
   };
 
   return (
@@ -110,10 +178,10 @@ export const ChallengeList: React.FC<ChallengeListProps> = ({
             const isCompleted = completedChallengeIds.includes(challenge.id);
             
             return (
-              <Link
+              <div
                 key={challenge.id}
-                href={`/dashboard/challenges/${challenge.id}`}
-                className="bg-oasis-dark rounded-lg p-6 border border-gray-700 hover:border-oasis-primary/50 transition-colors"
+                className="bg-oasis-dark rounded-lg p-6 border border-gray-700 hover:border-oasis-primary/50 transition-colors cursor-pointer"
+                onClick={(e) => handleChallengeClick(challenge, e)}
               >
                 <div className="flex justify-between items-start mb-3">
                   <h3 className="text-xl font-bold text-white">{challenge.title}</h3>
@@ -157,11 +225,83 @@ export const ChallengeList: React.FC<ChallengeListProps> = ({
                     </svg>
                   </span>
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>
       )}
+      
+      {/* Flag Validation Modal */}
+      <Modal 
+        isOpen={showFlagModal} 
+        onClose={closeModal}
+        title={`Unlock Challenge: ${selectedChallenge?.title || ''}`}
+      >
+        <div className="p-6">
+          <p className="text-gray-300 mb-4">
+            To access this challenge, you need to enter the correct flag.
+          </p>
+          
+          <form onSubmit={handleFlagSubmit}>
+            <div className="mb-4">
+              <label className="block text-gray-400 text-sm mb-1">
+                Enter the flag:
+              </label>
+              <input
+                type="text"
+                value={flag}
+                onChange={(e) => {
+                  setFlag(e.target.value);
+                  setFlagError(null);
+                }}
+                placeholder="flag{...}"
+                className="w-full bg-oasis-dark text-white border border-gray-700 rounded px-3 py-2 focus:outline-none focus:border-oasis-primary"
+                disabled={loading}
+              />
+              {flagError && (
+                <p className="text-red-500 text-sm mt-1">{flagError}</p>
+              )}
+              {attempts > 0 && (
+                <p className="text-yellow-500 text-sm mt-1">
+                  Incorrect attempts: {attempts}
+                </p>
+              )}
+            </div>
+            
+            <div className="flex justify-between">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              
+              <button
+                type="submit"
+                disabled={loading || !flag.trim()}
+                className="bg-oasis-primary text-oasis-dark px-4 py-2 rounded font-semibold hover:bg-oasis-primary/90 transition-colors disabled:opacity-50 flex items-center"
+              >
+                {loading ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Validating...
+                  </>
+                ) : (
+                  'Submit Flag'
+                )}
+              </button>
+            </div>
+            
+            <div className="mt-4 text-gray-400 text-sm">
+              <p>
+                <strong>Hint:</strong> Flags are usually in the format{' '}
+                <code className="bg-oasis-dark px-1 py-0.5 rounded">flag&#123;some_text_here&#125;</code>
+              </p>
+            </div>
+          </form>
+        </div>
+      </Modal>
     </div>
   );
 }; 

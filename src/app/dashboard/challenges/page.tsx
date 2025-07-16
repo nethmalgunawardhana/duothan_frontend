@@ -19,14 +19,15 @@ export default function ChallengesPage() {
       setError(null);
       
       try {
-        const response = await apiClient.getActiveChallenges();
+        // Use the team challenges endpoint
+        const response = await apiClient.getChallenges();
         
         if (response.success && response.data) {
-          setChallenges(response.data);
+          setChallenges(response.data.filter(challenge => challenge.isActive));
         } else {
           setError(response.error || 'Failed to fetch challenges');
         }
-      } catch {
+      } catch (err) {
         setError('An error occurred while fetching challenges');
       } finally {
         setLoading(false);
