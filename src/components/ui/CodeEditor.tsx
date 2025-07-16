@@ -3,6 +3,7 @@ import { apiClient } from '@/utils/api';
 import { Button } from './Button';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ExecutionResults } from './ExecutionResults';
+import { useJudge0 } from '@/hooks/useJudge0';
 
 interface CodeEditorProps {
   challengeId: string;
@@ -23,13 +24,6 @@ const LANGUAGE_OPTIONS = {
   go: { id: 60, name: 'Go' },
 };
 
-interface CodeEditorProps {
-  challengeId: string;
-  initialCode?: string;
-  testCases?: { input: string; expectedOutput: string; isHidden: boolean }[];
-  onSubmissionComplete?: (submissionId: string) => void;
-}
-
 export const CodeEditor: React.FC<CodeEditorProps> = ({
   challengeId,
   initialCode = '',
@@ -40,17 +34,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [language, setLanguage] = useState<keyof typeof LANGUAGE_OPTIONS>('javascript');
   const [activeTab, setActiveTab] = useState<'editor' | 'result'>('editor');
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'testing' | 'submitting' | 'completed' | 'error'>('idle');
-  const [executionResult, setExecutionResult] = useState<{
-    status?: string;
-    statusDescription?: string;
-    stdout?: string;
-    stderr?: string;
-    compile_output?: string;
-    executionTime?: number;
-    memory?: number;
-  } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Array<{
+    passed: boolean;
+    output?: string;
+    error?: string;
+    expected?: string;
+    input?: string;
+  }>>([]);
+  const [submissionLoading, setSubmissionLoading] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  // Use Judge0 hook for code execution
+  const { loading: judge0Loading, error: judge0Error, result: judge0Result, executeCode } = useJudge0();
 
   // Handle code change
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -62,35 +57,79 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     setLanguage(e.target.value as keyof typeof LANGUAGE_OPTIONS);
   };
 
-  // Test code execution
+  // Test code execution against test cases
   const handleTestCode = async () => {
     if (!code.trim()) return;
     
     setSubmissionStatus('testing');
     setActiveTab('result');
-    setLoading(true);
-    setError(null);
+    setTestResults([]);
+    setSubmissionError(null);
     
     try {
-      const response = await apiClient.submitCode({
-        challengeId,
-        code,
-        language,
-        stdin: testCases[0]?.input || '', // Use first test case input if available
-      });
+      const languageId = LANGUAGE_OPTIONS[language].id;
+      const results: Array<{
+        passed: boolean;
+        output?: string;
+        error?: string;
+        expected?: string;
+        input?: string;
+      }> = [];
       
-      if (response.success && response.data) {
-        setExecutionResult(response.data.executionResult);
-        setSubmissionStatus('idle');
+      // If no test cases, just run the code once
+      if (testCases.length === 0) {
+        const result = await executeCode({
+          source_code: code,
+          language_id: languageId,
+        });
+        
+        results.push({
+          passed: result.status.id === 3, // Accepted
+          output: result.stdout || '',
+          error: result.stderr || result.compile_output || result.message || '',
+          expected: '',
+          input: '',
+        });
       } else {
-        setError(response.error || 'Code execution failed');
-        setSubmissionStatus('error');
+        // Run code against each test case
+        for (let i = 0; i < testCases.length; i++) {
+          const testCase = testCases[i];
+          
+          try {
+            const result = await executeCode({
+              source_code: code,
+              language_id: languageId,
+              stdin: testCase.input,
+            });
+            
+            const actualOutput = (result.stdout || '').trim();
+            const expectedOutput = testCase.expectedOutput.trim();
+            const passed = actualOutput === expectedOutput && result.status.id === 3;
+            
+            results.push({
+              passed,
+              output: actualOutput,
+              error: result.stderr || result.compile_output || result.message || '',
+              expected: expectedOutput,
+              input: testCase.input,
+            });
+          } catch (error) {
+            results.push({
+              passed: false,
+              output: '',
+              error: error instanceof Error ? error.message : 'Execution failed',
+              expected: testCase.expectedOutput,
+              input: testCase.input,
+            });
+          }
+        }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during testing');
+      
+      setTestResults(results);
+      setSubmissionStatus('idle');
+    } catch (error) {
+      setSubmissionError(error instanceof Error ? error.message : 'An error occurred during testing');
       setSubmissionStatus('error');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -99,8 +138,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     if (!code.trim()) return;
     
     setSubmissionStatus('submitting');
-    setLoading(true);
-    setError(null);
+    setSubmissionLoading(true);
+    setSubmissionError(null);
     
     try {
       const response = await apiClient.submitCode({
@@ -116,15 +155,29 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       } else {
         setSubmissionStatus('error');
-        setError(response.error || 'Submission failed');
+        setSubmissionError(response.error || 'Submission failed');
       }
     } catch (err) {
       setSubmissionStatus('error');
-      setError(err instanceof Error ? err.message : 'Submission error');
+      setSubmissionError(err instanceof Error ? err.message : 'Submission error');
     } finally {
-      setLoading(false);
+      setSubmissionLoading(false);
     }
   };
+
+  const isLoading = judge0Loading || submissionLoading;
+  const currentError = judge0Error || submissionError;
+
+  // Convert Judge0Result to ExecutionResult format
+  const convertedResult = judge0Result ? {
+    status: judge0Result.status,
+    stdout: judge0Result.stdout || undefined,
+    stderr: judge0Result.stderr || undefined,
+    compile_output: judge0Result.compile_output || undefined,
+    message: judge0Result.message || undefined,
+    time: judge0Result.time || undefined,
+    memory: judge0Result.memory || undefined,
+  } : null;
 
   return (
     <div className="bg-oasis-surface rounded-lg border border-oasis-primary/30 overflow-hidden">
@@ -167,9 +220,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       
       <div className={`${activeTab === 'result' ? 'block' : 'hidden'} h-96`}>
         <ExecutionResults
-          loading={loading}
-          error={error}
-          result={executionResult}
+          loading={isLoading}
+          error={currentError}
+          result={convertedResult}
+          testResults={testResults}
         />
       </div>
       
@@ -177,9 +231,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         <Button
           onClick={handleTestCode}
           variant="secondary"
-          disabled={loading || !code.trim() || submissionStatus === 'submitting'}
+          disabled={isLoading || !code.trim()}
         >
-          {loading && submissionStatus === 'testing' ? (
+          {isLoading && submissionStatus === 'testing' ? (
             <><LoadingSpinner size="sm" /> Testing...</>
           ) : (
             'Test Code'
@@ -188,9 +242,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         
         <Button
           onClick={handleSubmitSolution}
-          disabled={loading || !code.trim() || submissionStatus === 'submitting' || submissionStatus === 'testing'}
+          disabled={isLoading || !code.trim()}
         >
-          {loading && submissionStatus === 'submitting' ? (
+          {isLoading && submissionStatus === 'submitting' ? (
             <><LoadingSpinner size="sm" /> Submitting...</>
           ) : (
             'Submit Solution'

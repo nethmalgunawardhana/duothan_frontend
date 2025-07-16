@@ -78,13 +78,18 @@ export const useJudge0 = () => {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to submit code');
+        const errorText = await response.text();
+        throw new Error(`Judge0 API Error (${response.status}): ${errorText || 'Failed to submit code'}`);
       }
       
       const data = await response.json();
       return data.token;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during submission');
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('Cannot connect to Judge0 API. Please check if the service is running at ' + JUDGE0_API);
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred during submission');
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -105,7 +110,8 @@ export const useJudge0 = () => {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to get submission result');
+        const errorText = await response.text();
+        throw new Error(`Judge0 API Error (${response.status}): ${errorText || 'Failed to get submission result'}`);
       }
       
       const data = await response.json();
@@ -125,7 +131,11 @@ export const useJudge0 = () => {
       setResult(result);
       return result;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching results');
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('Cannot connect to Judge0 API. Please check if the service is running at ' + JUDGE0_API);
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred while fetching results');
+      }
       throw err;
     } finally {
       setLoading(false);

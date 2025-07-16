@@ -3,7 +3,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 
 interface ExecutionResult {
   status?: {
-    id: string;
+    id: string | number;
     description: string;
   };
   stdout?: string;
@@ -18,6 +18,8 @@ interface TestResult {
   passed: boolean;
   output?: string;
   error?: string;
+  expected?: string;
+  input?: string;
 }
 
 interface ExecutionResultsProps {
@@ -80,11 +82,29 @@ export const ExecutionResults: React.FC<ExecutionResultsProps> = ({
                 </span>
               </div>
               
+              {testResult.input && (
+                <div className="mb-2">
+                  <span className="text-gray-400">Input:</span>
+                  <pre className="bg-oasis-dark p-2 rounded mt-1 text-white overflow-x-auto">
+                    {testResult.input}
+                  </pre>
+                </div>
+              )}
+              
               {testResult.output && (
                 <div className="mb-2">
-                  <span className="text-gray-400">Output:</span>
+                  <span className="text-gray-400">Actual Output:</span>
                   <pre className="bg-oasis-dark p-2 rounded mt-1 text-white overflow-x-auto">
                     {testResult.output}
+                  </pre>
+                </div>
+              )}
+              
+              {testResult.expected && (
+                <div className="mb-2">
+                  <span className="text-gray-400">Expected Output:</span>
+                  <pre className="bg-oasis-dark p-2 rounded mt-1 text-yellow-300 overflow-x-auto">
+                    {testResult.expected}
                   </pre>
                 </div>
               )}
