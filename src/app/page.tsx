@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import ConnectionTest from '@/components/ConnectionTest';
+
 
 export default function HomePage() {
   const router = useRouter();
@@ -59,10 +59,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Connection Test - Remove in production */}
-      <div className="mt-8">
-        <ConnectionTest />
-      </div>
+   
     </div>
   );
 }
