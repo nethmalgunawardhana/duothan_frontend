@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
-import { useJudge0, LANGUAGE_IDS } from '@/hooks/useJudge0';
 import { apiClient } from '@/utils/api';
 import { Button } from './Button';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ExecutionResults } from './ExecutionResults';
+
+interface CodeEditorProps {
+  challengeId: string;
+  initialCode?: string;
+  testCases?: { input: string; expectedOutput: string; isHidden: boolean }[];
+  onSubmissionComplete?: (submissionId: string) => void;
+}
+
+// Language IDs matching backend configuration
+const LANGUAGE_OPTIONS = {
+  javascript: { id: 63, name: 'JavaScript' },
+  python: { id: 71, name: 'Python' },
+  java: { id: 62, name: 'Java' },
+  cpp: { id: 54, name: 'C++' },
+  c: { id: 50, name: 'C' },
+  typescript: { id: 74, name: 'TypeScript' },
+  ruby: { id: 72, name: 'Ruby' },
+  go: { id: 60, name: 'Go' },
+};
 
 interface CodeEditorProps {
   challengeId: string;
@@ -19,12 +37,20 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onSubmissionComplete,
 }) => {
   const [code, setCode] = useState(initialCode);
-  const [language, setLanguage] = useState<keyof typeof LANGUAGE_IDS>('javascript');
+  const [language, setLanguage] = useState<keyof typeof LANGUAGE_OPTIONS>('javascript');
   const [activeTab, setActiveTab] = useState<'editor' | 'result'>('editor');
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'testing' | 'submitting' | 'completed' | 'error'>('idle');
-  const [testResults, setTestResults] = useState<Array<{ passed: boolean; output: string; error?: string }>>([]);
-  
-  const { loading, error, result, executeCode } = useJudge0();
+  const [executionResult, setExecutionResult] = useState<{
+    status?: string;
+    statusDescription?: string;
+    stdout?: string;
+    stderr?: string;
+    compile_output?: string;
+    executionTime?: number;
+    memory?: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Handle code change
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -33,66 +59,53 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   // Handle language change
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setLanguage(e.target.value as keyof typeof LANGUAGE_IDS);
+    setLanguage(e.target.value as keyof typeof LANGUAGE_OPTIONS);
   };
 
-  // Test code against test cases
+  // Test code execution
   const handleTestCode = async () => {
     if (!code.trim()) return;
     
     setSubmissionStatus('testing');
     setActiveTab('result');
-    setTestResults([]);
+    setLoading(true);
+    setError(null);
     
-    const visibleTestCases = testCases.filter(tc => !tc.isHidden);
-    const results = [];
-    
-    for (const testCase of visibleTestCases) {
-      try {
-        const result = await executeCode({
-          source_code: code,
-          language_id: LANGUAGE_IDS[language],
-          stdin: testCase.input,
-          expected_output: testCase.expectedOutput,
-        });
-        
-        if (result.status.id === 3) { // Accepted
-          const passed = result.stdout?.trim() === testCase.expectedOutput.trim();
-          results.push({
-            passed,
-            output: result.stdout || '',
-            error: passed ? undefined : 'Output does not match expected output',
-          });
-        } else {
-          results.push({
-            passed: false,
-            output: '',
-            error: result.stderr || result.compile_output || result.message || `Execution error: ${result.status.description}`,
-          });
-        }
-      } catch (err) {
-        results.push({
-          passed: false,
-          output: '',
-          error: err instanceof Error ? err.message : 'An error occurred during testing',
-        });
+    try {
+      const response = await apiClient.submitCode({
+        challengeId,
+        code,
+        language,
+        stdin: testCases[0]?.input || '', // Use first test case input if available
+      });
+      
+      if (response.success && response.data) {
+        setExecutionResult(response.data.executionResult);
+        setSubmissionStatus('idle');
+      } else {
+        setError(response.error || 'Code execution failed');
+        setSubmissionStatus('error');
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during testing');
+      setSubmissionStatus('error');
+    } finally {
+      setLoading(false);
     }
-    
-    setTestResults(results);
-    setSubmissionStatus('idle');
   };
 
-  // Submit solution
+  // Submit solution for evaluation
   const handleSubmitSolution = async () => {
     if (!code.trim()) return;
     
     setSubmissionStatus('submitting');
+    setLoading(true);
+    setError(null);
     
     try {
-      const response = await apiClient.submitSolution({
+      const response = await apiClient.submitCode({
         challengeId,
-        solution: code,
+        code,
         language,
       });
       
@@ -103,11 +116,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       } else {
         setSubmissionStatus('error');
-        console.error('Submission failed:', response.error);
+        setError(response.error || 'Submission failed');
       }
     } catch (err) {
       setSubmissionStatus('error');
-      console.error('Submission error:', err);
+      setError(err instanceof Error ? err.message : 'Submission error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -133,14 +148,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             onChange={handleLanguageChange}
             className="bg-oasis-dark text-white border border-gray-700 rounded px-2 py-1 text-sm mr-2"
           >
-            <option value="javascript">JavaScript</option>
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-            <option value="cpp">C++</option>
-            <option value="c">C</option>
-            <option value="typescript">TypeScript</option>
-            <option value="ruby">Ruby</option>
-            <option value="go">Go</option>
+            {Object.entries(LANGUAGE_OPTIONS).map(([key, { name }]) => (
+              <option key={key} value={key}>{name}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -159,8 +169,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         <ExecutionResults
           loading={loading}
           error={error}
-          result={result}
-          testResults={testResults}
+          result={executionResult}
         />
       </div>
       
